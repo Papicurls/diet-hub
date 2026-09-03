@@ -419,11 +419,19 @@ body {
 .grocery-add input { flex: 1; min-width: 0; }
 
 @media (max-width: 860px) {
-  .shell { flex-direction: column; min-height: 100dvh; padding-bottom: calc(64px + env(safe-area-inset-bottom)); }
+  .shell { flex-direction: column; min-height: 100dvh; padding-bottom: calc(72px + env(safe-area-inset-bottom)); }
   .sidebar {
-    position: fixed; bottom: 0; left: 0; right: 0;
-    width: auto; height: auto; z-index: 10;
-    flex-direction: row; align-items: center;
+    position: fixed;
+    top: auto;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    width: 100%;
+    height: auto;
+    max-height: none;
+    z-index: 10;
+    flex-direction: row;
+    align-items: stretch;
     padding: 6px 8px calc(6px + env(safe-area-inset-bottom));
     border-right: none;
     border-top: 1px solid var(--border);
@@ -431,7 +439,7 @@ body {
   }
   .brand { display: none; }
   .sidebar-footer { display: none; }
-  .nav { flex-direction: row; width: 100%; justify-content: space-around; gap: 0; }
+  .nav { flex: none; flex-direction: row; width: 100%; justify-content: space-around; gap: 0; }
   .nav-item {
     flex: 1; justify-content: center;
     padding: 12px 4px;

@@ -487,9 +487,10 @@ async function boot() {
   const standalone = window.navigator.standalone === true || window.matchMedia("(display-mode: standalone)").matches;
   const banner = document.getElementById("installBanner");
   if (banner && ios && !standalone) banner.hidden = false;
-  const localHost = /^(localhost|127\.0\.0\.1|\d+\.\d+\.\d+\.\d+)$/.test(location.hostname);
-  if (!localHost && "serviceWorker" in navigator) {
-    navigator.serviceWorker.register("sw.js", { updateViaCache: "none" }).catch(() => {});
+  if ("serviceWorker" in navigator) {
+    navigator.serviceWorker.getRegistrations().then((regs) => {
+      regs.forEach((reg) => reg.unregister());
+    });
   }
 }
 

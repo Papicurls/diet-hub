@@ -12,7 +12,12 @@
 <link rel="manifest" href="manifest.json" />
 <link rel="icon" href="icon.svg" />
 <link rel="apple-touch-icon" href="icon-180.png" />
-<link rel="stylesheet" href="styles.css?v=6" />
+<style>
+@media (max-width: 860px) {
+  .sidebar { top: auto !important; height: auto !important; bottom: 0 !important; }
+}
+</style>
+<link rel="stylesheet" href="styles.css?v=7" />
 </head>
 <body>
   <div id="installBanner" class="install-banner" hidden>
@@ -165,8 +170,8 @@
     </main>
   </div>
 
-  <script src="seed.js?v=6"></script>
-  <script src="store.js?v=6"></script>
-  <script src="app.js?v=6"></script>
+  <script src="seed.js?v=7"></script>
+  <script src="store.js?v=7"></script>
+  <script src="app.js?v=7"></script>
 </body>
 </html>
