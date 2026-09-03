@@ -1,0 +1,103 @@
+{
+  "note": "This week's haul. Check off what you already have. Edit amounts anytime. Potatoes are in — 400 g cooked post-lift × 5 train days.",
+  "items": [
+    {
+      "id": "chicken-breast",
+      "item": "Chicken breast",
+      "amount": "3 lb",
+      "have": false,
+      "category": "protein"
+    },
+    {
+      "id": "ground-beef-farm",
+      "item": "Ground beef (farm)",
+      "amount": "1.5 lb",
+      "have": false,
+      "category": "protein"
+    },
+    {
+      "id": "eggs",
+      "item": "Eggs",
+      "amount": "3 dozen",
+      "have": false,
+      "category": "protein"
+    },
+    {
+      "id": "raw-milk",
+      "item": "Raw milk",
+      "amount": "2 gallons",
+      "have": true,
+      "category": "dairy"
+    },
+    {
+      "id": "white-jasmine-rice",
+      "item": "White/jasmine rice",
+      "amount": "5 lb dry",
+      "have": false,
+      "category": "carbs"
+    },
+    {
+      "id": "potatoes",
+      "item": "Potatoes",
+      "amount": "8 lb",
+      "have": false,
+      "category": "carbs"
+    },
+    {
+      "id": "olive-oil",
+      "item": "Olive oil",
+      "amount": "1 bottle",
+      "have": true,
+      "category": "fat"
+    },
+    {
+      "id": "guacamole",
+      "item": "Guacamole",
+      "amount": "16 oz tub",
+      "have": false,
+      "category": "fat"
+    },
+    {
+      "id": "oranges",
+      "item": "Oranges",
+      "amount": "5",
+      "have": false,
+      "category": "fruit"
+    },
+    {
+      "id": "bananas",
+      "item": "Bananas",
+      "amount": "2",
+      "have": false,
+      "category": "fruit"
+    },
+    {
+      "id": "frozen-berries",
+      "item": "Frozen berries",
+      "amount": "1 lb",
+      "have": false,
+      "category": "fruit"
+    },
+    {
+      "id": "salt",
+      "item": "Salt",
+      "amount": "as needed",
+      "have": true,
+      "category": "pantry"
+    },
+    {
+      "id": "ground-beef-on-hand",
+      "item": "Ground beef (on hand)",
+      "amount": "1 lb",
+      "have": true,
+      "category": "protein"
+    },
+    {
+      "id": "raw-chicken-on-hand",
+      "item": "Raw chicken (on hand)",
+      "amount": "150 g",
+      "have": true,
+      "category": "protein"
+    }
+  ]
+}

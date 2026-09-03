@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="default" />
+<meta name="apple-mobile-web-app-title" content="Diet Hub" />
+<meta name="theme-color" content="#1baf7a" />
+<title>Diet Hub — Chris</title>
+<link rel="manifest" href="manifest.json" />
+<link rel="icon" href="icon.svg" />
+<link rel="apple-touch-icon" href="icon-180.png" />
+<link rel="stylesheet" href="styles.css?v=5" />
+</head>
+<body>
+  <div id="installBanner" class="install-banner" hidden>
+    <div>
+      <strong>Add Diet Hub to your home screen.</strong>
+      Tap Share, then Add to Home Screen. After that it’s just an icon — no laptop needed for meals and grocery.
+    </div>
+    <button type="button" class="ghost-btn" id="dismissInstall">Got it</button>
+  </div>
+  <div class="shell">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-mark">DH</div>
+        <div class="brand-text">
+          <div class="brand-title">Diet Hub</div>
+          <div class="brand-sub">Chris · lean bulk</div>
+        </div>
+      </div>
+
+      <nav class="nav" id="nav">
+        <button class="nav-item" data-section="grocery">
+          <span class="nav-dot dot-2"></span>Grocery
+        </button>
+        <button class="nav-item" data-section="today">
+          <span class="nav-dot dot-1"></span>Today
+        </button>
+        <button class="nav-item" data-section="plan">
+          <span class="nav-dot dot-3"></span>Plan
+        </button>
+        <button class="nav-item" data-section="agent">
+          <span class="nav-dot dot-7"></span>Ask the agent
+        </button>
+      </nav>
+
+      <div class="sidebar-footer">
+        <div class="refresh-row">
+          <button id="switchDayBtn" class="ghost-btn">Switch day type</button>
+          <button id="themeBtn" class="ghost-btn" title="Toggle theme">◐</button>
+        </div>
+        <div class="meta-line" id="metaLine">loading…</div>
+      </div>
+    </aside>
+
+    <main class="main">
+      <section class="view" id="view-grocery" data-view>
+        <header class="view-header">
+          <h1>Grocery list</h1>
+          <p class="sub">What to buy this week. Check off what you already have. Change amounts or add items.</p>
+        </header>
+        <div id="groceryContent"></div>
+      </section>
+
+      <section class="view" id="view-today" data-view hidden>
+        <div id="dayGate" class="gate-inline" hidden>
+          <div class="gate-kicker" id="gateKicker">Today</div>
+          <h1>Train day or rest day?</h1>
+          <p>Pick one to log meals. Grocery stays in the sidebar.</p>
+          <div class="gate-actions">
+            <button class="gate-btn train" id="pickTrain">
+              <span class="gate-label">Train</span>
+              <span class="gate-meta">~3,025 kcal · rice + potato around the lift</span>
+            </button>
+            <button class="gate-btn rest" id="pickRest">
+              <span class="gate-label">Rest</span>
+              <span class="gate-meta">~2,350 kcal · beef, smoothie, no rice</span>
+            </button>
+          </div>
+        </div>
+
+        <div id="todayBody">
+        <header class="view-header">
+          <h1 id="todayTitle">Today</h1>
+          <p class="sub" id="todaySub">Log planned meals or anything extra. Remaining calories update live.</p>
+        </header>
+
+        <div class="stat-tiles" id="statTiles"></div>
+
+        <div class="macro-bars" id="macroBars"></div>
+
+        <div class="split">
+          <div class="card">
+            <h2>Planned meals</h2>
+            <p class="card-sub" id="plannedSub">Check a meal when you eat it.</p>
+            <div id="plannedList"></div>
+          </div>
+          <div class="card">
+            <h2>Logged</h2>
+            <p class="card-sub">Tap × to undo.</p>
+            <div id="loggedList"></div>
+            <form id="extraForm" class="extra-form">
+              <div class="extra-title">Log something extra</div>
+              <div class="extra-row">
+                <input name="name" placeholder="Food" required />
+                <input name="calories" type="number" min="0" step="1" placeholder="kcal" required />
+              </div>
+              <div class="extra-row extra-macros">
+                <input name="protein" type="number" min="0" step="1" placeholder="P g" />
+                <input name="carbs" type="number" min="0" step="1" placeholder="C g" />
+                <input name="fat" type="number" min="0" step="1" placeholder="F g" />
+                <button type="submit" class="primary-btn">Add</button>
+              </div>
+            </form>
+          </div>
+        </div>
+
+        <div class="card chat-card">
+          <h2>Ask about today</h2>
+          <p class="card-sub">The agent sees what you already ate and what is left.</p>
+          <div id="todayChatLog" class="chat-log compact"></div>
+          <form id="todayChatForm" class="chat-form inset">
+            <input id="todayChatInput" autocomplete="off" placeholder="What should I eat next?" />
+            <button type="submit" class="primary-btn">Ask</button>
+          </form>
+        </div>
+        </div>
+      </section>
+
+      <section class="view" id="view-plan" data-view hidden>
+        <header class="view-header">
+          <div class="header-row">
+            <div>
+              <h1>Diet plan</h1>
+              <p class="sub">Edit meals anytime. Potatoes are in on train-day post-lift. Saving retotals the day’s calories from the meals.</p>
+            </div>
+            <button id="savePlanBtn" class="primary-btn">Save plan</button>
+          </div>
+        </header>
+        <div id="planSaveStatus" class="save-status" hidden></div>
+        <div id="planContent"></div>
+      </section>
+
+      <section class="view" id="view-agent" data-view hidden>
+        <header class="view-header">
+          <div class="header-row">
+            <div>
+              <h1>Ask the agent</h1>
+              <p class="sub">It sees today’s log, remaining calories, the grocery list, and can change meals if you ask.</p>
+            </div>
+            <button id="clearChatBtn" class="ghost-btn">Clear chat</button>
+          </div>
+        </header>
+        <div class="chat-shell">
+          <div id="chatLog" class="chat-log"></div>
+          <form id="chatForm" class="chat-form">
+            <input id="chatInput" autocomplete="off" placeholder="What should I eat now?" />
+            <button type="submit" class="primary-btn" id="chatSend">Ask</button>
+          </form>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script src="store.js?v=5"></script>
+  <script src="app.js?v=5"></script>
+</body>
+</html>
