@@ -12,7 +12,7 @@
 <link rel="manifest" href="manifest.json" />
 <link rel="icon" href="icon.svg" />
 <link rel="apple-touch-icon" href="icon-180.png" />
-<link rel="stylesheet" href="styles.css?v=5" />
+<link rel="stylesheet" href="styles.css?v=6" />
 </head>
 <body>
   <div id="installBanner" class="install-banner" hidden>
@@ -62,7 +62,7 @@
           <h1>Grocery list</h1>
           <p class="sub">What to buy this week. Check off what you already have. Change amounts or add items.</p>
         </header>
-        <div id="groceryContent"></div>
+        <div id="groceryContent"><p class="need-count">Opening grocery list…</p></div>
       </section>
 
       <section class="view" id="view-today" data-view hidden>
@@ -165,7 +165,8 @@
     </main>
   </div>
 
-  <script src="store.js?v=5"></script>
-  <script src="app.js?v=5"></script>
+  <script src="seed.js?v=6"></script>
+  <script src="store.js?v=6"></script>
+  <script src="app.js?v=6"></script>
 </body>
 </html>

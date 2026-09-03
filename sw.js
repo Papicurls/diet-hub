@@ -1,17 +1,16 @@
-const CACHE = "diet-hub-v5";
+const CACHE = "diet-hub-v6";
 const FILES = [
   "./",
   "index.html",
-  "styles.css?v=5",
-  "app.js?v=5",
-  "store.js?v=5",
+  "styles.css?v=6",
+  "seed.js?v=6",
+  "store.js?v=6",
+  "app.js?v=6",
   "manifest.json",
   "icon.svg",
   "icon-180.png",
   "icon-192.png",
   "icon-512.png",
-  "seed/plan.json",
-  "seed/grocery.json",
 ];
 
 self.addEventListener("install", (event) => {
@@ -38,6 +37,19 @@ self.addEventListener("activate", (event) => {
 
 self.addEventListener("fetch", (event) => {
   if (event.request.method !== "GET") return;
+  const isPage = event.request.mode === "navigate";
+  if (isPage) {
+    event.respondWith(
+      fetch(event.request)
+        .then((res) => {
+          const copy = res.clone();
+          caches.open(CACHE).then((cache) => cache.put(event.request, copy));
+          return res;
+        })
+        .catch(() => caches.match(event.request).then((hit) => hit || caches.match("./"))),
+    );
+    return;
+  }
   event.respondWith(
     caches.match(event.request).then((hit) => hit || fetch(event.request).catch(() => caches.match("./"))),
   );

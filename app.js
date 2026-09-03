@@ -469,6 +469,7 @@ function bind() {
 async function boot() {
   applyTheme();
   bind();
+  if (!window.DietStore) throw new Error("App failed to load. Refresh.");
   state.plan = await api("/api/plan");
   state.grocery = await api("/api/grocery");
   renderPlan();
@@ -481,13 +482,14 @@ async function boot() {
     state.messages = [];
   }
   renderChat();
+  $("metaLine").textContent = "Tap Today to log food.";
   const ios = /iPhone|iPad|iPod/.test(navigator.userAgent);
   const standalone = window.navigator.standalone === true || window.matchMedia("(display-mode: standalone)").matches;
   const banner = document.getElementById("installBanner");
   if (banner && ios && !standalone) banner.hidden = false;
   const localHost = /^(localhost|127\.0\.0\.1|\d+\.\d+\.\d+\.\d+)$/.test(location.hostname);
   if (!localHost && "serviceWorker" in navigator) {
-    navigator.serviceWorker.register("sw.js").catch(() => {});
+    navigator.serviceWorker.register("sw.js", { updateViaCache: "none" }).catch(() => {});
   }
 }
 

@@ -6,30 +6,39 @@ function todayKey(date) {
 }
 
 function uid() {
-  return crypto.randomUUID();
+  if (crypto.randomUUID) return crypto.randomUUID();
+  return "id-" + Date.now().toString(16) + "-" + Math.random().toString(16).slice(2);
 }
 
 function emptyDb() {
   return { plan: null, grocery: { note: "", items: [] }, logs: { days: {} }, chats: { messages: [] } };
 }
 
+let memoryDb = null;
+
 function readDb() {
   try {
     const raw = localStorage.getItem(DB_KEY);
-    if (!raw) return emptyDb();
+    if (!raw) return memoryDb || emptyDb();
     const db = JSON.parse(raw);
-    db.plan ||= null;
-    db.grocery ||= { note: "", items: [] };
-    db.logs ||= { days: {} };
-    db.chats ||= { messages: [] };
+    db.plan = db.plan || null;
+    db.grocery = db.grocery || { note: "", items: [] };
+    db.logs = db.logs || { days: {} };
+    db.chats = db.chats || { messages: [] };
+    memoryDb = db;
     return db;
   } catch {
-    return emptyDb();
+    return memoryDb || emptyDb();
   }
 }
 
 function writeDb(db) {
-  localStorage.setItem(DB_KEY, JSON.stringify(db));
+  memoryDb = db;
+  try {
+    localStorage.setItem(DB_KEY, JSON.stringify(db));
+  } catch {
+    /* private mode / quota — keep memory copy */
+  }
 }
 
 function sumMacros(rows) {
@@ -94,15 +103,14 @@ function onServer() {
   return h === "localhost" || h === "127.0.0.1" || /^\d+\.\d+\.\d+\.\d+$/.test(h);
 }
 
-async function seedIfNeeded() {
+function seedIfNeeded() {
   const db = readDb();
-  if (db.plan && db.grocery?.items?.length) return db;
-  const [plan, grocery] = await Promise.all([
-    fetch("seed/plan.json").then((r) => r.json()),
-    fetch("seed/grocery.json").then((r) => r.json()),
-  ]);
-  if (!db.plan) db.plan = plan;
-  if (!db.grocery?.items?.length) db.grocery = grocery;
+  const seed = window.DIET_SEED || {};
+  if (!db.plan) db.plan = seed.plan || null;
+  if (!db.grocery || !db.grocery.items || !db.grocery.items.length) {
+    db.grocery = seed.grocery || { note: "", items: [] };
+  }
+  if (!db.plan) throw new Error("Plan failed to load. Refresh the page.");
   writeDb(db);
   return db;
 }
@@ -140,7 +148,7 @@ async function localHandle(path, opts = {}) {
   const url = new URL(path, "http://diet.local");
   const route = url.pathname;
   const body = opts.body ? JSON.parse(opts.body) : {};
-  const db = await seedIfNeeded();
+  const db = seedIfNeeded();
 
   if (route === "/api/plan" && method === "GET") return db.plan;
   if (route === "/api/plan" && method === "PUT") {
