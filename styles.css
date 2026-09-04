@@ -354,6 +354,17 @@ body {
 .chat-log.compact { min-height: 160px; max-height: 240px; padding: 0 0 12px; }
 .chat-form.inset { padding: 12px 0 0; border-top: 1px solid var(--border); }
 
+.steps-card { margin-bottom: 18px; }
+.steps-card .header-row { margin-bottom: 12px; align-items: center; }
+.steps-readout { text-align: right; }
+.steps-readout .stat-value { font-size: 28px; font-weight: 650; font-variant-numeric: tabular-nums; }
+.steps-form { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 14px; }
+.steps-form input { flex: 1; min-width: 120px; font-family: inherit; font-size: 13px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface-2); color: var(--text-primary); padding: 8px 10px; }
+.health-help { margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--border); font-size: 13.5px; color: var(--text-secondary); }
+.health-help ol { padding-left: 18px; }
+.health-help li { margin: 8px 0; }
+.health-help code { display: inline-block; margin-top: 4px; font-size: 12px; word-break: break-all; }
+
 .save-status {
   margin: -8px 0 16px;
   font-size: 13px;
@@ -446,6 +457,8 @@ body {
     font-size: 12px;
   }
   .stat-tiles, .split, .plan-grid, .gate-actions { grid-template-columns: 1fr; }
+  .steps-form { flex-direction: column; }
+  .steps-form .primary-btn, .steps-form .ghost-btn { width: 100%; }
   .main { padding: 20px 16px 24px; }
   .bubble { max-width: 90%; }
   .haul-item { grid-template-columns: 22px 1fr 32px; }

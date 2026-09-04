@@ -42,6 +42,54 @@ function showView(name) {
   });
 }
 
+function stepsFromUrl() {
+  const params = new URLSearchParams(location.search);
+  let raw = params.get("steps");
+  if (raw == null && location.hash) {
+    raw = new URLSearchParams(location.hash.replace(/^#/, "")).get("steps");
+  }
+  const n = Number(raw);
+  if (!Number.isFinite(n) || n < 0) return null;
+  return Math.round(n);
+}
+
+function clearStepsFromUrl() {
+  const url = new URL(location.href);
+  url.searchParams.delete("steps");
+  if (url.hash && /steps=/i.test(url.hash)) url.hash = "";
+  history.replaceState({}, "", url.pathname + url.search + url.hash);
+}
+
+function renderSteps() {
+  const t = state.today;
+  if (!$("stepsValue")) return;
+  const goal = t?.stepGoal || 10000;
+  const steps = t?.steps;
+  const have = steps != null && Number.isFinite(Number(steps));
+  const n = have ? round(steps) : 0;
+  const left = Math.max(0, goal - n);
+  const pct = Math.min(100, goal ? (n / goal) * 100 : 0);
+  $("stepsValue").textContent = have ? n.toLocaleString() : "—";
+  $("stepsNote").textContent = have
+    ? `${t.stepsSource === "health" ? "From Health" : "Logged"} · ${left ? left.toLocaleString() + " to goal" : "goal hit"}`
+    : "Not synced yet";
+  $("stepsFill").style.width = `${pct}%`;
+  $("stepsFill").classList.toggle("is-over", n >= goal);
+  $("stepsBarValue").textContent = `${have ? n.toLocaleString() : 0} / ${goal.toLocaleString()}`;
+  if ($("stepsInput") && have && document.activeElement !== $("stepsInput")) {
+    $("stepsInput").value = String(n);
+  }
+}
+
+async function saveSteps(steps, source) {
+  state.today = await api("/api/today/steps", {
+    method: "POST",
+    body: JSON.stringify({ date: DATE, steps, source }),
+  });
+  renderSteps();
+  if (state.today?.type) renderToday();
+}
+
 function renderGate() {
   const gate = $("dayGate");
   const body = $("todayBody");
@@ -229,7 +277,7 @@ function renderGrocery() {
 function renderChat() {
   const html =
     !state.messages.length && !state.asking
-      ? `<div class="empty">Ask about today, a swap, potatoes, or change the plan. Example: “I already had eggs — what do I eat next?”</div>`
+      ? `<div class="empty">Ask about today, or change daily macros. Example: “Set protein to 180, carbs to 350, fat to 70 and show me the meals.”</div>`
       : state.messages
           .map((m) => `<div class="bubble ${m.role === "user" ? "user" : "agent"}">${escapeHtml(m.content)}</div>`)
           .join("") + (state.asking ? `<div class="bubble agent pending">Thinking…</div>` : "");
@@ -244,6 +292,7 @@ function renderChat() {
 async function loadToday() {
   state.today = await api(`/api/today?date=${DATE}`);
   renderGate();
+  renderSteps();
   renderToday();
 }
 
@@ -253,6 +302,7 @@ async function pickType(type) {
     body: JSON.stringify({ date: DATE, type }),
   });
   renderGate();
+  renderSteps();
   renderToday();
 }
 
@@ -348,6 +398,19 @@ async function sendChat(message) {
 function bind() {
   $("pickTrain").addEventListener("click", () => pickType("train"));
   $("pickRest").addEventListener("click", () => pickType("rest"));
+  $("stepsForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const steps = Number($("stepsInput").value);
+    if (!Number.isFinite(steps) || steps < 0) return;
+    await saveSteps(steps, "manual");
+  });
+  $("healthStepsBtn").addEventListener("click", () => {
+    const help = $("healthHelp");
+    help.hidden = !help.hidden;
+  });
+  $("runHealthShortcut").addEventListener("click", () => {
+    location.href = "shortcuts://run-shortcut?name=Diet%20Hub%20Steps";
+  });
   const dismiss = $("dismissInstall");
   if (dismiss) dismiss.addEventListener("click", () => { $("installBanner").hidden = true; });
   $("switchDayBtn").addEventListener("click", () => {
@@ -476,6 +539,12 @@ async function boot() {
   renderGrocery();
   showView("grocery");
   await loadToday();
+  const incoming = stepsFromUrl();
+  if (incoming != null) {
+    await saveSteps(incoming, "health");
+    clearStepsFromUrl();
+    showView("today");
+  }
   try {
     state.messages = await api("/api/chat");
   } catch {
