@@ -17,7 +17,7 @@
   .sidebar { top: auto !important; height: auto !important; bottom: 0 !important; }
 }
 </style>
-<link rel="stylesheet" href="styles.css?v=9" />
+<link rel="stylesheet" href="styles.css?v=10" />
 </head>
 <body>
   <div id="installBanner" class="install-banner" hidden>
@@ -126,8 +126,13 @@
 
         <div id="todayBody">
         <header class="view-header">
-          <h1 id="todayTitle">Today</h1>
-          <p class="sub" id="todaySub">Log planned meals or anything extra. Remaining calories update live.</p>
+          <div class="header-row">
+            <div>
+              <h1 id="todayTitle">Today</h1>
+              <p class="sub" id="todaySub">Log planned meals or anything extra. Remaining calories update live.</p>
+            </div>
+            <button type="button" class="ghost-btn" id="changeDayBtn">Switch to train day</button>
+          </div>
         </header>
 
         <div class="stat-tiles" id="statTiles"></div>
@@ -145,16 +150,30 @@
             <p class="card-sub">Tap × to undo.</p>
             <div id="loggedList"></div>
             <form id="extraForm" class="extra-form">
-              <div class="extra-title">Log something extra</div>
+              <div class="extra-title">Ate something else</div>
+              <p class="card-sub">Food + how much. We’ll estimate calories, protein, carbs, and fat, then subtract from what’s left today.</p>
               <div class="extra-row">
-                <input name="name" placeholder="Food" required />
-                <input name="calories" type="number" min="0" step="1" placeholder="kcal" required />
+                <input name="name" placeholder="Chicken breast, rice, eggs…" required />
               </div>
+              <div class="extra-row">
+                <input name="amount" type="number" min="0" step="any" placeholder="Amount" />
+                <select name="unit" id="foodUnit">
+                  <option value="g">grams</option>
+                  <option value="oz">oz</option>
+                  <option value="lb">lb</option>
+                  <option value="cup">cup</option>
+                  <option value="tbsp">tbsp</option>
+                  <option value="piece">piece / egg</option>
+                </select>
+                <button type="button" class="ghost-btn" id="estimateFoodBtn">Estimate</button>
+              </div>
+              <div id="foodEstimate" class="food-estimate" hidden></div>
               <div class="extra-row extra-macros">
-                <input name="protein" type="number" min="0" step="1" placeholder="P g" />
-                <input name="carbs" type="number" min="0" step="1" placeholder="C g" />
-                <input name="fat" type="number" min="0" step="1" placeholder="F g" />
-                <button type="submit" class="primary-btn">Add</button>
+                <input name="calories" type="number" min="0" step="1" placeholder="kcal" />
+                <input name="protein" type="number" min="0" step="0.1" placeholder="P g" />
+                <input name="carbs" type="number" min="0" step="0.1" placeholder="C g" />
+                <input name="fat" type="number" min="0" step="0.1" placeholder="F g" />
+                <button type="submit" class="primary-btn">Log it</button>
               </div>
             </form>
           </div>
@@ -191,7 +210,7 @@
           <div class="header-row">
             <div>
               <h1>Ask the agent</h1>
-              <p class="sub">Tell it the daily protein, carbs, and fat you want. It will rewrite the meals and show what that looks like.</p>
+              <p class="sub">Ask anything — diet, lifting, or random. It also sees today’s log and can rewrite meals if you want.</p>
             </div>
             <button id="clearChatBtn" class="ghost-btn">Clear chat</button>
           </div>
@@ -199,7 +218,7 @@
         <div class="chat-shell">
           <div id="chatLog" class="chat-log"></div>
           <form id="chatForm" class="chat-form">
-            <input id="chatInput" autocomplete="off" placeholder="Set protein to 180, carbs to 350, fat to 70" />
+            <input id="chatInput" autocomplete="off" placeholder="Ask me anything" />
             <button type="submit" class="primary-btn" id="chatSend">Ask</button>
           </form>
         </div>
@@ -207,8 +226,10 @@
     </main>
   </div>
 
-  <script src="seed.js?v=9"></script>
-  <script src="store.js?v=9"></script>
-  <script src="app.js?v=9"></script>
+  <script src="seed.js?v=10"></script>
+  <script src="store.js?v=10"></script>
+  <script src="foods.js?v=10"></script>
+  <script src="llm.js?v=10"></script>
+  <script src="app.js?v=10"></script>
 </body>
 </html>

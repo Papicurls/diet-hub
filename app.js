@@ -6,6 +6,7 @@ const state = {
   today: null,
   messages: [],
   asking: false,
+  foodEstimate: null,
 };
 
 function $(id) {
@@ -116,6 +117,9 @@ function renderToday() {
   $("todayTitle").textContent = `${label} · ${DATE}`;
   $("todaySub").textContent = t.template.role;
   $("metaLine").textContent = `${label} · target ${t.targets.calories.toLocaleString()} kcal`;
+  if ($("changeDayBtn")) {
+    $("changeDayBtn").textContent = t.type === "train" ? "Switch to rest day" : "Switch to train day";
+  }
 
   const eaten = round(t.totals.calories);
   const need = t.targets.calories;
@@ -277,7 +281,7 @@ function renderGrocery() {
 function renderChat() {
   const html =
     !state.messages.length && !state.asking
-      ? `<div class="empty">Ask about today, or change daily macros. Example: “Set protein to 180, carbs to 350, fat to 70 and show me the meals.”</div>`
+      ? `<div class="empty">Ask anything. Diet, lifting, or random. Example: “I ate 200 g chicken instead of the plan — what’s left today?”</div>`
       : state.messages
           .map((m) => `<div class="bubble ${m.role === "user" ? "user" : "agent"}">${escapeHtml(m.content)}</div>`)
           .join("") + (state.asking ? `<div class="bubble agent pending">Thinking…</div>` : "");
@@ -312,6 +316,27 @@ async function eatPlanned(mealId) {
     body: JSON.stringify({ date: DATE, mealId }),
   });
   renderToday();
+}
+
+async function fillFoodEstimate() {
+  const form = $("extraForm");
+  const fd = new FormData(form);
+  const box = $("foodEstimate");
+  const est = await window.DietFoods.estimateFood({
+    name: fd.get("name"),
+    amount: fd.get("amount"),
+    unit: fd.get("unit"),
+  });
+  state.foodEstimate = est;
+  form.calories.value = est.calories;
+  form.protein.value = est.protein;
+  form.carbs.value = est.carbs;
+  form.fat.value = est.fat;
+  if (box) {
+    box.hidden = false;
+    box.textContent = `${est.name} · ${est.grams} g → ${est.calories} kcal · P ${est.protein}g · C ${est.carbs}g · F ${est.fat}g`;
+  }
+  return est;
 }
 
 async function eatExtra(fields) {
@@ -415,8 +440,27 @@ function bind() {
   if (dismiss) dismiss.addEventListener("click", () => { $("installBanner").hidden = true; });
   $("switchDayBtn").addEventListener("click", () => {
     showView("today");
+    if (state.today?.type) {
+      pickType(state.today.type === "train" ? "rest" : "train");
+      return;
+    }
     $("dayGate").hidden = false;
     if ($("todayBody")) $("todayBody").hidden = true;
+  });
+  $("changeDayBtn").addEventListener("click", () => {
+    const next = state.today?.type === "train" ? "rest" : "train";
+    pickType(next);
+  });
+  $("estimateFoodBtn").addEventListener("click", async () => {
+    try {
+      await fillFoodEstimate();
+    } catch (err) {
+      const box = $("foodEstimate");
+      if (box) {
+        box.hidden = false;
+        box.textContent = err.message;
+      }
+    }
   });
   $("themeBtn").addEventListener("click", () => {
     const next = document.documentElement.dataset.theme === "dark" ? "light" : "dark";
@@ -437,14 +481,34 @@ function bind() {
   $("extraForm").addEventListener("submit", async (e) => {
     e.preventDefault();
     const fd = new FormData(e.target);
-    await eatExtra({
-      name: fd.get("name"),
-      calories: Number(fd.get("calories")),
-      protein: Number(fd.get("protein") || 0),
-      carbs: Number(fd.get("carbs") || 0),
-      fat: Number(fd.get("fat") || 0),
-    });
+    let calories = Number(fd.get("calories"));
+    let protein = Number(fd.get("protein") || 0);
+    let carbs = Number(fd.get("carbs") || 0);
+    let fat = Number(fd.get("fat") || 0);
+    if (!Number.isFinite(calories) || calories <= 0) {
+      try {
+        const est = await fillFoodEstimate();
+        calories = est.calories;
+        protein = est.protein;
+        carbs = est.carbs;
+        fat = est.fat;
+      } catch (err) {
+        const box = $("foodEstimate");
+        if (box) {
+          box.hidden = false;
+          box.textContent = err.message;
+        }
+        return;
+      }
+    }
+    const amount = fd.get("amount");
+    const unit = fd.get("unit") || "g";
+    const name = String(fd.get("name") || "").trim();
+    const label = amount ? `${name} · ${amount} ${unit}` : name;
+    await eatExtra({ name: label, food: label, calories, protein, carbs, fat });
     e.target.reset();
+    state.foodEstimate = null;
+    if ($("foodEstimate")) $("foodEstimate").hidden = true;
   });
 
   const onChatSubmit = (inputId) => async (e) => {

@@ -435,7 +435,17 @@ async function localHandle(path, opts = {}) {
   if (route === "/api/today/type" && method === "POST") {
     const date = todayKey(body.date);
     const day = ensureDay(db, date);
-    day.type = body.type === "rest" ? "rest" : "train";
+    const next = body.type === "rest" ? "rest" : "train";
+    if (day.type && day.type !== next) {
+      day.eaten = (day.eaten || []).map((x) => {
+        if (x.kind !== "planned") return x;
+        const copy = { ...x, kind: "extra" };
+        delete copy.mealId;
+        copy.name = `${x.name} (was ${day.type})`;
+        return copy;
+      });
+    }
+    day.type = next;
     writeDb(db);
     return snapshot(db, date);
   }
@@ -487,17 +497,33 @@ async function localHandle(path, opts = {}) {
     return snapshot(db, date);
   }
 
+  if (route === "/api/food/lookup" && method === "POST") {
+    return window.DietFoods.estimateFood(body);
+  }
+
   if (route === "/api/chat" && method === "GET") return db.chats.messages || [];
   if (route === "/api/chat" && method === "POST") {
     const date = todayKey(body.date);
     const message = String(body.message || "");
     const change = applyMacroChange(db, message);
-    const reply = change ? change.reply : localReply(db, date, message);
+    let reply;
+    let applied = [];
+    if (change) {
+      reply = change.reply;
+      applied = change.applied;
+    } else {
+      try {
+        const system = window.DietLLM.buildChatSystem(db, date);
+        reply = await window.DietLLM.askAnywhere(system, db.chats.messages || [], message);
+      } catch (err) {
+        reply = `${localReply(db, date, message)}\n\n(Full chat is offline right now: ${err.message})`;
+      }
+    }
     const userMsg = { id: uid(), role: "user", content: message, at: new Date().toISOString() };
-    const agentMsg = { id: uid(), role: "agent", content: reply, at: new Date().toISOString(), applied: change ? change.applied : [] };
+    const agentMsg = { id: uid(), role: "agent", content: reply, at: new Date().toISOString(), applied };
     db.chats.messages = [...(db.chats.messages || []), userMsg, agentMsg];
     writeDb(db);
-    return { reply: agentMsg, messages: db.chats.messages, applied: change ? change.applied : [], plan: db.plan, grocery: db.grocery };
+    return { reply: agentMsg, messages: db.chats.messages, applied, plan: db.plan, grocery: db.grocery };
   }
   if (route === "/api/chat/clear" && method === "POST") {
     db.chats.messages = [];

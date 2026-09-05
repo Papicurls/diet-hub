@@ -257,7 +257,18 @@ body {
 
 .extra-form { margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--border); }
 .extra-title { font-size: 12px; font-weight: 650; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 10px; }
-.extra-row { display: flex; gap: 8px; margin-bottom: 8px; }
+.extra-form select {
+  font-family: inherit; font-size: 13px;
+  border: 1px solid var(--border); border-radius: var(--radius-sm);
+  background: var(--surface-2); color: var(--text-primary);
+  padding: 8px 10px; min-width: 108px;
+}
+.food-estimate {
+  font-size: 13px; color: var(--text-secondary);
+  background: var(--surface-2); border: 1px solid var(--border);
+  border-radius: var(--radius-sm); padding: 10px 12px; margin-bottom: 10px;
+}
+.food-estimate[hidden] { display: none; }
 .extra-form input {
   flex: 1; min-width: 0;
   font-family: inherit; font-size: 13px;
