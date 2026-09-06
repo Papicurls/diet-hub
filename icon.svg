@@ -1,4 +1,13 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 180 180">
-  <rect width="180" height="180" rx="40" fill="#1baf7a"/>
-  <text x="90" y="118" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="72" font-weight="700" fill="#fff">DH</text>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" fill="#000"/>
+  <g fill="#fff">
+    <!-- left plates -->
+    <rect x="72" y="156" width="56" height="200" rx="14"/>
+    <rect x="128" y="184" width="36" height="144" rx="10"/>
+    <!-- bar -->
+    <rect x="164" y="236" width="184" height="40" rx="12"/>
+    <!-- right plates -->
+    <rect x="348" y="184" width="36" height="144" rx="10"/>
+    <rect x="384" y="156" width="56" height="200" rx="14"/>
+  </g>
 </svg>
