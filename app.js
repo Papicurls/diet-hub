@@ -165,7 +165,7 @@ function renderToday() {
     .join("");
 
   const eatenIds = new Set((t.eaten || []).filter((x) => x.kind === "planned").map((x) => x.mealId));
-  $("plannedSub").textContent = "Check the box if you ate it as written. Ate different if the amount changed — leftover or extra goes to the next meal.";
+  $("plannedSub").textContent = "Check the box if you ate it as written. Extra food and Ate different both move calories onto the next meals.";
   const meals = t.displayMeals || t.template.meals;
   $("plannedList").innerHTML = meals
     .map((m) => {

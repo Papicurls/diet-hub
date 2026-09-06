@@ -219,7 +219,7 @@ function applyDeltaToMeal(meal, delta) {
     food: scaleFoodText(meal.food, { pR, cR, fR }),
     adjusted: shifted !== 0,
     adjustNote: shifted
-      ? `${shifted > 0 ? "+" : ""}${shifted} kcal moved here so the day still hits target`
+      ? `${shifted > 0 ? "+" : ""}${shifted} kcal moved here from food you already logged`
       : "",
   };
 }
@@ -227,31 +227,37 @@ function applyDeltaToMeal(meal, delta) {
 function displayedMeals(template, eaten) {
   if (!template?.meals) return [];
   const meals = template.meals.map((m) => ({ ...m }));
-  const eatenById = {};
-  for (const x of eaten || []) {
-    if (x.kind === "planned" && x.mealId) eatenById[x.mealId] = x;
+  const eatenIds = new Set((eaten || []).filter((x) => x.kind === "planned" && x.mealId).map((x) => x.mealId));
+  const remaining = meals.filter((m) => !eatenIds.has(m.id));
+  if (!remaining.length) return meals;
+  const totals = sumMacros(eaten || []);
+  const budget = {
+    protein: (Number(template.protein) || 0) - totals.protein,
+    carbs: (Number(template.carbs) || 0) - totals.carbs,
+    fat: (Number(template.fat) || 0) - totals.fat,
+  };
+  const have = sumMacros(remaining);
+  const leftover = {
+    protein: budget.protein - have.protein,
+    carbs: budget.carbs - have.carbs,
+    fat: budget.fat - have.fat,
+  };
+  if (Math.abs(leftover.protein) < 2 && Math.abs(leftover.carbs) < 3 && Math.abs(leftover.fat) < 2) {
+    return meals;
   }
-  for (let i = 0; i < meals.length; i++) {
-    const actual = eatenById[meals[i].id];
-    if (!actual) continue;
-    const delta = {
-      calories: (Number(actual.calories) || 0) - (Number(meals[i].calories) || 0),
-      protein: (Number(actual.protein) || 0) - (Number(meals[i].protein) || 0),
-      carbs: (Number(actual.carbs) || 0) - (Number(meals[i].carbs) || 0),
-      fat: (Number(actual.fat) || 0) - (Number(meals[i].fat) || 0),
+  let rest = { ...leftover };
+  for (const m of remaining) {
+    const apply = {
+      protein: rest.protein < 0 ? Math.max(rest.protein, -Number(m.protein) || 0) : rest.protein,
+      carbs: rest.carbs < 0 ? Math.max(rest.carbs, -Number(m.carbs) || 0) : rest.carbs,
+      fat: rest.fat < 0 ? Math.max(rest.fat, -Number(m.fat) || 0) : rest.fat,
     };
-    if (Math.abs(delta.calories) < 12 && Math.abs(delta.protein) < 2 && Math.abs(delta.carbs) < 3 && Math.abs(delta.fat) < 2) {
-      continue;
-    }
-    let j = i + 1;
-    while (j < meals.length && eatenById[meals[j].id]) j += 1;
-    if (j >= meals.length) break;
-    meals[j] = applyDeltaToMeal(meals[j], {
-      calories: -delta.calories,
-      protein: -delta.protein,
-      carbs: -delta.carbs,
-      fat: -delta.fat,
-    });
+    const idx = meals.findIndex((x) => x.id === m.id);
+    meals[idx] = applyDeltaToMeal(m, apply);
+    rest.protein -= apply.protein;
+    rest.carbs -= apply.carbs;
+    rest.fat -= apply.fat;
+    if (Math.abs(rest.protein) < 2 && Math.abs(rest.carbs) < 3 && Math.abs(rest.fat) < 2) break;
   }
   return meals;
 }
