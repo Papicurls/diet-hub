@@ -257,6 +257,21 @@ body {
 
 .extra-form { margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--border); }
 .extra-title { font-size: 12px; font-weight: 650; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 10px; }
+.quick-adds { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 12px; }
+.quick-chip {
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text-primary);
+  border-radius: 999px;
+  padding: 8px 12px;
+  cursor: pointer;
+}
+.quick-chip:active { background: var(--gridline); }
+.quick-chip:disabled { opacity: 0.5; cursor: wait; }
+.extra-row { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; align-items: center; }
 .extra-form select {
   font-family: inherit; font-size: 13px;
   border: 1px solid var(--border); border-radius: var(--radius-sm);
@@ -365,10 +380,24 @@ body {
 .chat-log.compact { min-height: 160px; max-height: 240px; padding: 0 0 12px; }
 .chat-form.inset { padding: 12px 0 0; border-top: 1px solid var(--border); }
 
-.steps-card { margin-bottom: 18px; }
-.steps-card .header-row { margin-bottom: 12px; align-items: center; }
-.steps-readout { text-align: right; }
-.steps-readout .stat-value { font-size: 28px; font-weight: 650; font-variant-numeric: tabular-nums; }
+.steps-card { margin-top: 16px; margin-bottom: 8px; }
+.steps-card > summary {
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  list-style: none;
+  font-weight: 650;
+}
+.steps-card > summary::-webkit-details-marker { display: none; }
+.steps-summary-readout {
+  font-weight: 500;
+  font-size: 13px;
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
 .steps-form { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 14px; }
 .steps-form input { flex: 1; min-width: 120px; font-family: inherit; font-size: 13px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface-2); color: var(--text-primary); padding: 8px 10px; }
 .health-help { margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--border); font-size: 13.5px; color: var(--text-secondary); }

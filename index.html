@@ -8,6 +8,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default" />
 <meta name="apple-mobile-web-app-title" content="Diet Hub" />
 <meta name="theme-color" content="#1baf7a" />
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
 <title>Diet Hub — Chris</title>
 <link rel="manifest" href="manifest.json" />
 <link rel="icon" href="icon.svg" />
@@ -17,7 +18,7 @@
   .sidebar { top: auto !important; height: auto !important; bottom: 0 !important; }
 }
 </style>
-<link rel="stylesheet" href="styles.css?v=10" />
+<link rel="stylesheet" href="styles.css?v=12" />
 </head>
 <body>
   <div id="installBanner" class="install-banner" hidden>
@@ -38,17 +39,17 @@
       </div>
 
       <nav class="nav" id="nav">
+        <button class="nav-item is-active" data-section="today">
+          <span class="nav-dot dot-1"></span>Today
+        </button>
         <button class="nav-item" data-section="grocery">
           <span class="nav-dot dot-2"></span>Grocery
-        </button>
-        <button class="nav-item" data-section="today">
-          <span class="nav-dot dot-1"></span>Today
         </button>
         <button class="nav-item" data-section="plan">
           <span class="nav-dot dot-3"></span>Plan
         </button>
         <button class="nav-item" data-section="agent">
-          <span class="nav-dot dot-7"></span>Ask the agent
+          <span class="nav-dot dot-7"></span>Ask
         </button>
       </nav>
 
@@ -62,7 +63,7 @@
     </aside>
 
     <main class="main">
-      <section class="view" id="view-grocery" data-view>
+      <section class="view" id="view-grocery" data-view hidden>
         <header class="view-header">
           <h1>Grocery list</h1>
           <p class="sub">What to buy this week. Check off what you already have. Change amounts or add items.</p>
@@ -70,44 +71,7 @@
         <div id="groceryContent"><p class="need-count">Opening grocery list…</p></div>
       </section>
 
-      <section class="view" id="view-today" data-view hidden>
-        <div class="card steps-card" id="stepsCard">
-          <div class="header-row">
-            <div>
-              <h2>Steps</h2>
-              <p class="card-sub">Goal ~10k. Apple won’t let a website open Health, so a Shortcut sends the count here.</p>
-            </div>
-            <div class="steps-readout">
-              <div class="stat-value" id="stepsValue">—</div>
-              <div class="stat-note" id="stepsNote">Not synced yet</div>
-            </div>
-          </div>
-          <div class="bar-row">
-            <div class="bar-label">Today</div>
-            <div class="bar-track"><div class="bar-fill c" id="stepsFill" style="width:0%"></div></div>
-            <div class="bar-value" id="stepsBarValue">0 / 10,000</div>
-          </div>
-          <form id="stepsForm" class="steps-form">
-            <input id="stepsInput" type="number" min="0" step="1" inputmode="numeric" placeholder="Today’s steps" />
-            <button type="submit" class="primary-btn">Save</button>
-            <button type="button" class="ghost-btn" id="healthStepsBtn">Get from Health</button>
-          </form>
-          <div id="healthHelp" class="health-help" hidden>
-            <p><strong>One-time setup on iPhone</strong></p>
-            <ol>
-              <li>Open the <strong>Shortcuts</strong> app → tap <strong>+</strong>.</li>
-              <li>Add <strong>Find Health Samples</strong>. Type: <strong>Steps</strong>. Start Date: <strong>Start of Today</strong>.</li>
-              <li>Add <strong>Calculate Statistic</strong> → <strong>Sum</strong>.</li>
-              <li>Add <strong>Open URLs</strong>. URL:
-                <code id="healthUrlTemplate">https://papicurls.github.io/diet-hub/?steps=</code>
-                then tap and insert the <strong>Sum</strong> variable right after <code>=</code>.</li>
-              <li>Name it <strong>Diet Hub Steps</strong> and tap Done. Allow Health access when it asks.</li>
-            </ol>
-            <p>After that, tap the button below whenever you want Diet Hub to pull today’s steps. Optional: Shortcuts → Automation → Time of Day, run this shortcut daily.</p>
-            <button type="button" class="primary-btn" id="runHealthShortcut">I added it — run it</button>
-          </div>
-        </div>
-
+      <section class="view" id="view-today" data-view>
         <div id="dayGate" class="gate-inline" hidden>
           <div class="gate-kicker" id="gateKicker">Today</div>
           <h1>Train day or rest day?</h1>
@@ -151,7 +115,16 @@
             <div id="loggedList"></div>
             <form id="extraForm" class="extra-form">
               <div class="extra-title">Ate something else</div>
-              <p class="card-sub">Food + how much. We’ll estimate calories, protein, carbs, and fat, then subtract from what’s left today.</p>
+              <div class="quick-adds" id="quickAdds">
+                <button type="button" class="quick-chip" data-food="eggs" data-amount="4" data-unit="piece">4 eggs</button>
+                <button type="button" class="quick-chip" data-food="chicken breast" data-amount="150" data-unit="g">Chicken 150g</button>
+                <button type="button" class="quick-chip" data-food="chicken breast" data-amount="200" data-unit="g">Chicken 200g</button>
+                <button type="button" class="quick-chip" data-food="rice" data-amount="200" data-unit="g">Rice 200g</button>
+                <button type="button" class="quick-chip" data-food="rice" data-amount="400" data-unit="g">Rice 400g</button>
+                <button type="button" class="quick-chip" data-food="ground beef" data-amount="175" data-unit="g">Beef 175g</button>
+                <button type="button" class="quick-chip" data-food="raw milk" data-amount="250" data-unit="ml">Milk 250ml</button>
+                <button type="button" class="quick-chip" data-food="potato" data-amount="300" data-unit="g">Potato 300g</button>
+              </div>
               <div class="extra-row">
                 <input name="name" placeholder="Chicken breast, rice, eggs…" required />
               </div>
@@ -159,6 +132,7 @@
                 <input name="amount" type="number" min="0" step="any" placeholder="Amount" />
                 <select name="unit" id="foodUnit">
                   <option value="g">grams</option>
+                  <option value="ml">ml</option>
                   <option value="oz">oz</option>
                   <option value="lb">lb</option>
                   <option value="cup">cup</option>
@@ -179,15 +153,37 @@
           </div>
         </div>
 
-        <div class="card chat-card">
-          <h2>Ask about today</h2>
-          <p class="card-sub">The agent sees what you already ate and what is left.</p>
-          <div id="todayChatLog" class="chat-log compact"></div>
-          <form id="todayChatForm" class="chat-form inset">
-            <input id="todayChatInput" autocomplete="off" placeholder="What should I eat next?" />
-            <button type="submit" class="primary-btn">Ask</button>
+        <details class="card steps-card" id="stepsCard">
+          <summary class="steps-summary">
+            <span>Steps</span>
+            <span class="steps-summary-readout"><span id="stepsValue">—</span> · <span id="stepsNote">tap to log</span></span>
+          </summary>
+          <p class="card-sub">Goal ~10k. Shortcut from Health, or type them.</p>
+          <div class="bar-row">
+            <div class="bar-label">Today</div>
+            <div class="bar-track"><div class="bar-fill c" id="stepsFill" style="width:0%"></div></div>
+            <div class="bar-value" id="stepsBarValue">0 / 10,000</div>
+          </div>
+          <form id="stepsForm" class="steps-form">
+            <input id="stepsInput" type="number" min="0" step="1" inputmode="numeric" placeholder="Today’s steps" />
+            <button type="submit" class="primary-btn">Save</button>
+            <button type="button" class="ghost-btn" id="healthStepsBtn">Get from Health</button>
           </form>
-        </div>
+          <div id="healthHelp" class="health-help" hidden>
+            <p><strong>One-time setup on iPhone</strong></p>
+            <ol>
+              <li>Open the <strong>Shortcuts</strong> app → tap <strong>+</strong>.</li>
+              <li>Add <strong>Find Health Samples</strong>. Type: <strong>Steps</strong>. Start Date: <strong>Start of Today</strong>.</li>
+              <li>Add <strong>Calculate Statistic</strong> → <strong>Sum</strong>.</li>
+              <li>Add <strong>Open URLs</strong>. URL:
+                <code id="healthUrlTemplate">https://papicurls.github.io/diet-hub/?steps=</code>
+                then tap and insert the <strong>Sum</strong> variable right after <code>=</code>.</li>
+              <li>Name it <strong>Diet Hub Steps</strong> and tap Done. Allow Health access when it asks.</li>
+            </ol>
+            <p>After that, tap the button below whenever you want Diet Hub to pull today’s steps. Optional: Shortcuts → Automation → Time of Day, run this shortcut daily.</p>
+            <button type="button" class="primary-btn" id="runHealthShortcut">I added it — run it</button>
+          </div>
+        </details>
         </div>
       </section>
 
@@ -226,10 +222,10 @@
     </main>
   </div>
 
-  <script src="seed.js?v=10"></script>
-  <script src="store.js?v=10"></script>
-  <script src="foods.js?v=10"></script>
-  <script src="llm.js?v=10"></script>
-  <script src="app.js?v=10"></script>
+  <script src="seed.js?v=12"></script>
+  <script src="store.js?v=12"></script>
+  <script src="foods.js?v=12"></script>
+  <script src="llm.js?v=12"></script>
+  <script src="app.js?v=12"></script>
 </body>
 </html>

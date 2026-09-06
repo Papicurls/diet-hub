@@ -34,13 +34,26 @@ function applyTheme() {
   if (saved) document.documentElement.dataset.theme = saved;
 }
 
+const VIEWS = ["today", "grocery", "plan", "agent"];
+
 function showView(name) {
+  if (!VIEWS.includes(name)) name = "today";
   document.querySelectorAll("[data-view]").forEach((el) => {
     el.hidden = el.id !== `view-${name}`;
   });
   document.querySelectorAll(".nav-item").forEach((btn) => {
     btn.classList.toggle("is-active", btn.dataset.section === name);
   });
+  try {
+    localStorage.setItem("diet-hub-view", name);
+  } catch {
+    /* private mode */
+  }
+}
+
+function guessDayType() {
+  const d = new Date().getDay();
+  return d === 0 || d === 6 ? "rest" : "train";
 }
 
 function stepsFromUrl() {
@@ -72,8 +85,8 @@ function renderSteps() {
   const pct = Math.min(100, goal ? (n / goal) * 100 : 0);
   $("stepsValue").textContent = have ? n.toLocaleString() : "—";
   $("stepsNote").textContent = have
-    ? `${t.stepsSource === "health" ? "From Health" : "Logged"} · ${left ? left.toLocaleString() + " to goal" : "goal hit"}`
-    : "Not synced yet";
+    ? `${t.stepsSource === "health" ? "Health" : "logged"} · ${left ? left.toLocaleString() + " left" : "goal"}`
+    : "tap to log";
   $("stepsFill").style.width = `${pct}%`;
   $("stepsFill").classList.toggle("is-over", n >= goal);
   $("stepsBarValue").textContent = `${have ? n.toLocaleString() : 0} / ${goal.toLocaleString()}`;
@@ -285,9 +298,8 @@ function renderChat() {
       : state.messages
           .map((m) => `<div class="bubble ${m.role === "user" ? "user" : "agent"}">${escapeHtml(m.content)}</div>`)
           .join("") + (state.asking ? `<div class="bubble agent pending">Thinking…</div>` : "");
-  for (const id of ["chatLog", "todayChatLog"]) {
-    const el = $(id);
-    if (!el) continue;
+  const el = $("chatLog");
+  if (el) {
     el.innerHTML = html;
     el.scrollTop = el.scrollHeight;
   }
@@ -345,6 +357,46 @@ async function eatExtra(fields) {
     body: JSON.stringify({ date: DATE, ...fields }),
   });
   renderToday();
+}
+
+async function logFoodFromForm(form) {
+  const fd = new FormData(form);
+  let calories = Number(fd.get("calories"));
+  let protein = Number(fd.get("protein") || 0);
+  let carbs = Number(fd.get("carbs") || 0);
+  let fat = Number(fd.get("fat") || 0);
+  if (!Number.isFinite(calories) || calories <= 0) {
+    const est = await fillFoodEstimate();
+    calories = est.calories;
+    protein = est.protein;
+    carbs = est.carbs;
+    fat = est.fat;
+  }
+  const amount = fd.get("amount");
+  const unit = fd.get("unit") || "g";
+  const name = String(fd.get("name") || "").trim();
+  const label = amount ? `${name} · ${amount} ${unit}` : name;
+  await eatExtra({ name: label, food: label, calories, protein, carbs, fat });
+  form.reset();
+  state.foodEstimate = null;
+  if ($("foodEstimate")) $("foodEstimate").hidden = true;
+}
+
+async function logQuickFood(btn) {
+  const form = $("extraForm");
+  form.name.value = btn.dataset.food;
+  form.amount.value = btn.dataset.amount;
+  form.unit.value = btn.dataset.unit;
+  form.calories.value = "";
+  try {
+    await logFoodFromForm(form);
+  } catch (err) {
+    const box = $("foodEstimate");
+    if (box) {
+      box.hidden = false;
+      box.textContent = err.message;
+    }
+  }
 }
 
 async function uneat(id) {
@@ -480,35 +532,25 @@ function bind() {
   });
   $("extraForm").addEventListener("submit", async (e) => {
     e.preventDefault();
-    const fd = new FormData(e.target);
-    let calories = Number(fd.get("calories"));
-    let protein = Number(fd.get("protein") || 0);
-    let carbs = Number(fd.get("carbs") || 0);
-    let fat = Number(fd.get("fat") || 0);
-    if (!Number.isFinite(calories) || calories <= 0) {
-      try {
-        const est = await fillFoodEstimate();
-        calories = est.calories;
-        protein = est.protein;
-        carbs = est.carbs;
-        fat = est.fat;
-      } catch (err) {
-        const box = $("foodEstimate");
-        if (box) {
-          box.hidden = false;
-          box.textContent = err.message;
-        }
-        return;
+    try {
+      await logFoodFromForm(e.target);
+    } catch (err) {
+      const box = $("foodEstimate");
+      if (box) {
+        box.hidden = false;
+        box.textContent = err.message;
       }
     }
-    const amount = fd.get("amount");
-    const unit = fd.get("unit") || "g";
-    const name = String(fd.get("name") || "").trim();
-    const label = amount ? `${name} · ${amount} ${unit}` : name;
-    await eatExtra({ name: label, food: label, calories, protein, carbs, fat });
-    e.target.reset();
-    state.foodEstimate = null;
-    if ($("foodEstimate")) $("foodEstimate").hidden = true;
+  });
+  $("quickAdds")?.addEventListener("click", async (e) => {
+    const btn = e.target.closest("[data-food]");
+    if (!btn || btn.disabled) return;
+    btn.disabled = true;
+    try {
+      await logQuickFood(btn);
+    } finally {
+      btn.disabled = false;
+    }
   });
 
   const onChatSubmit = (inputId) => async (e) => {
@@ -520,7 +562,6 @@ function bind() {
     await sendChat(message);
   };
   $("chatForm").addEventListener("submit", onChatSubmit("chatInput"));
-  $("todayChatForm").addEventListener("submit", onChatSubmit("todayChatInput"));
   $("clearChatBtn").addEventListener("click", async () => {
     await api("/api/chat/clear", { method: "POST", body: "{}" });
     state.messages = [];
@@ -601,13 +642,15 @@ async function boot() {
   state.grocery = await api("/api/grocery");
   renderPlan();
   renderGrocery();
-  showView("grocery");
   await loadToday();
+  if (!state.today?.type) await pickType(guessDayType());
   const incoming = stepsFromUrl();
   if (incoming != null) {
     await saveSteps(incoming, "health");
     clearStepsFromUrl();
     showView("today");
+  } else {
+    showView(localStorage.getItem("diet-hub-view") || "today");
   }
   try {
     state.messages = await api("/api/chat");
@@ -615,11 +658,16 @@ async function boot() {
     state.messages = [];
   }
   renderChat();
-  $("metaLine").textContent = "Tap Today to log food.";
+  if ($("metaLine").textContent === "loading…") {
+    $("metaLine").textContent = "Today opens first. Switch train/rest in the header.";
+  }
   const ios = /iPhone|iPad|iPod/.test(navigator.userAgent);
   const standalone = window.navigator.standalone === true || window.matchMedia("(display-mode: standalone)").matches;
   const banner = document.getElementById("installBanner");
   if (banner && ios && !standalone) banner.hidden = false;
+  if ("caches" in window) {
+    caches.keys().then((keys) => keys.forEach((k) => caches.delete(k)));
+  }
   if ("serviceWorker" in navigator) {
     navigator.serviceWorker.getRegistrations().then((regs) => {
       regs.forEach((reg) => reg.unregister());
