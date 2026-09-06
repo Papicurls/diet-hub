@@ -18,7 +18,7 @@
   .sidebar { top: auto !important; height: auto !important; bottom: 0 !important; }
 }
 </style>
-<link rel="stylesheet" href="styles.css?v=12" />
+<link rel="stylesheet" href="styles.css?v=13" />
 </head>
 <body>
   <div id="installBanner" class="install-banner" hidden>
@@ -115,15 +115,16 @@
             <div id="loggedList"></div>
             <form id="extraForm" class="extra-form">
               <div class="extra-title">Ate something else</div>
+              <p class="card-sub">If this replaces a planned meal, tap <strong>Ate different</strong> on that meal so the next meal’s amounts shift. Grams are cooked unless you pick uncooked.</p>
               <div class="quick-adds" id="quickAdds">
-                <button type="button" class="quick-chip" data-food="eggs" data-amount="4" data-unit="piece">4 eggs</button>
-                <button type="button" class="quick-chip" data-food="chicken breast" data-amount="150" data-unit="g">Chicken 150g</button>
-                <button type="button" class="quick-chip" data-food="chicken breast" data-amount="200" data-unit="g">Chicken 200g</button>
-                <button type="button" class="quick-chip" data-food="rice" data-amount="200" data-unit="g">Rice 200g</button>
-                <button type="button" class="quick-chip" data-food="rice" data-amount="400" data-unit="g">Rice 400g</button>
-                <button type="button" class="quick-chip" data-food="ground beef" data-amount="175" data-unit="g">Beef 175g</button>
-                <button type="button" class="quick-chip" data-food="raw milk" data-amount="250" data-unit="ml">Milk 250ml</button>
-                <button type="button" class="quick-chip" data-food="potato" data-amount="300" data-unit="g">Potato 300g</button>
+                <button type="button" class="quick-chip" data-food="eggs" data-amount="4" data-unit="piece" data-doneness="count">4 eggs</button>
+                <button type="button" class="quick-chip" data-food="chicken breast" data-amount="150" data-unit="g" data-doneness="cooked">Chicken 150g cooked</button>
+                <button type="button" class="quick-chip" data-food="chicken breast" data-amount="200" data-unit="g" data-doneness="cooked">Chicken 200g cooked</button>
+                <button type="button" class="quick-chip" data-food="rice" data-amount="200" data-unit="g" data-doneness="cooked">Rice 200g cooked</button>
+                <button type="button" class="quick-chip" data-food="rice" data-amount="400" data-unit="g" data-doneness="cooked">Rice 400g cooked</button>
+                <button type="button" class="quick-chip" data-food="ground beef" data-amount="175" data-unit="g" data-doneness="cooked">Beef 175g cooked</button>
+                <button type="button" class="quick-chip" data-food="raw milk" data-amount="250" data-unit="ml" data-doneness="liquid">Milk 250ml</button>
+                <button type="button" class="quick-chip" data-food="potato" data-amount="300" data-unit="g" data-doneness="cooked">Potato 300g cooked</button>
               </div>
               <div class="extra-row">
                 <input name="name" placeholder="Chicken breast, rice, eggs…" required />
@@ -138,6 +139,10 @@
                   <option value="cup">cup</option>
                   <option value="tbsp">tbsp</option>
                   <option value="piece">piece / egg</option>
+                </select>
+                <select name="doneness" id="foodDoneness" title="Cooked or uncooked">
+                  <option value="cooked">cooked weight</option>
+                  <option value="raw">uncooked / dry</option>
                 </select>
                 <button type="button" class="ghost-btn" id="estimateFoodBtn">Estimate</button>
               </div>
@@ -206,7 +211,7 @@
           <div class="header-row">
             <div>
               <h1>Ask the agent</h1>
-              <p class="sub">Ask anything — diet, lifting, or random. It also sees today’s log and can rewrite meals if you want.</p>
+              <p class="sub">Ask anything. It sees today’s log. Amounts are cooked unless you say uncooked.</p>
             </div>
             <button id="clearChatBtn" class="ghost-btn">Clear chat</button>
           </div>
@@ -222,10 +227,10 @@
     </main>
   </div>
 
-  <script src="seed.js?v=12"></script>
-  <script src="store.js?v=12"></script>
-  <script src="foods.js?v=12"></script>
-  <script src="llm.js?v=12"></script>
-  <script src="app.js?v=12"></script>
+  <script src="seed.js?v=13"></script>
+  <script src="store.js?v=13"></script>
+  <script src="foods.js?v=13"></script>
+  <script src="llm.js?v=13"></script>
+  <script src="app.js?v=13"></script>
 </body>
 </html>

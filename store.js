@@ -92,8 +92,9 @@ function snapshot(db, date) {
         fat: targets.fat - totals.fat,
       }
     : null;
+  const displayMeals = template ? displayedMeals(template, eaten) : [];
   const eatenIds = new Set(eaten.filter((x) => x.kind === "planned").map((x) => x.mealId));
-  const remainingMeals = template ? template.meals.filter((m) => !eatenIds.has(m.id)) : [];
+  const remainingMeals = displayMeals.filter((m) => !eatenIds.has(m.id));
   const goal = stepGoal(db.plan);
   const steps = day.steps == null ? null : Number(day.steps);
   return {
@@ -104,6 +105,7 @@ function snapshot(db, date) {
     targets,
     remaining,
     remainingMeals,
+    displayMeals,
     template,
     steps: Number.isFinite(steps) ? steps : null,
     stepGoal: goal,
@@ -179,6 +181,60 @@ function scaleFoodText(food, ratios) {
     });
   }
   return out.replace(/\s+/g, " ").trim();
+}
+
+function applyDeltaToMeal(meal, delta) {
+  const nextP = Math.max(0, Math.round((Number(meal.protein) || 0) + (Number(delta.protein) || 0)));
+  const nextC = Math.max(0, Math.round((Number(meal.carbs) || 0) + (Number(delta.carbs) || 0)));
+  const nextF = Math.max(0, Math.round((Number(meal.fat) || 0) + (Number(delta.fat) || 0)));
+  const pR = meal.protein ? nextP / meal.protein : 1;
+  const cR = meal.carbs ? nextC / meal.carbs : 1;
+  const fR = meal.fat ? nextF / meal.fat : 1;
+  const shifted = Math.round((nextP * 4 + nextC * 4 + nextF * 9) - (Number(meal.calories) || 0));
+  return {
+    ...meal,
+    protein: nextP,
+    carbs: nextC,
+    fat: nextF,
+    calories: Math.max(0, Math.round(nextP * 4 + nextC * 4 + nextF * 9)),
+    food: scaleFoodText(meal.food, { pR, cR, fR }),
+    adjusted: shifted !== 0,
+    adjustNote: shifted
+      ? `${shifted > 0 ? "+" : ""}${shifted} kcal moved here so the day still hits target`
+      : "",
+  };
+}
+
+function displayedMeals(template, eaten) {
+  if (!template?.meals) return [];
+  const meals = template.meals.map((m) => ({ ...m }));
+  const eatenById = {};
+  for (const x of eaten || []) {
+    if (x.kind === "planned" && x.mealId) eatenById[x.mealId] = x;
+  }
+  for (let i = 0; i < meals.length; i++) {
+    const actual = eatenById[meals[i].id];
+    if (!actual) continue;
+    const delta = {
+      calories: (Number(actual.calories) || 0) - (Number(meals[i].calories) || 0),
+      protein: (Number(actual.protein) || 0) - (Number(meals[i].protein) || 0),
+      carbs: (Number(actual.carbs) || 0) - (Number(meals[i].carbs) || 0),
+      fat: (Number(actual.fat) || 0) - (Number(meals[i].fat) || 0),
+    };
+    if (Math.abs(delta.calories) < 12 && Math.abs(delta.protein) < 2 && Math.abs(delta.carbs) < 3 && Math.abs(delta.fat) < 2) {
+      continue;
+    }
+    let j = i + 1;
+    while (j < meals.length && eatenById[meals[j].id]) j += 1;
+    if (j >= meals.length) break;
+    meals[j] = applyDeltaToMeal(meals[j], {
+      calories: -delta.calories,
+      protein: -delta.protein,
+      carbs: -delta.carbs,
+      fat: -delta.fat,
+    });
+  }
+  return meals;
 }
 
 function grabMacro(q, names) {
@@ -360,11 +416,14 @@ function localReply(db, date, message) {
     return `Train (~${t.calories} kcal · P${t.protein} C${t.carbs} F${t.fat})\n${describeDay(t)}\n\nRest (~${r.calories} kcal · P${r.protein} C${r.carbs} F${r.fat})\n${describeDay(r)}`;
   }
 
-  if (snap.type && (/eat|left|remain|today|calories|hungry|what do i/.test(q))) {
+  if (snap.type && (/eat|left|remain|today|calories|hungry|what do i|next meal|should i eat/.test(q))) {
     const left = Math.round(snap.remaining.calories);
-    const meals = snap.remainingMeals.map((m) => `- ${m.name}: ${m.food} (${m.calories} kcal)`).join("\n") || "- all planned meals logged";
+    const meals = (snap.remainingMeals || [])
+      .map((m) => `- ${m.name}: ${m.food} (${m.calories} kcal · P${m.protein} C${m.carbs} F${m.fat})${m.adjusted ? " — amounts shifted from what you already ate" : ""}`)
+      .join("\n") || "- all planned meals logged";
     const stepLine = snap.steps == null ? "" : `\nSteps: ${Math.round(snap.steps).toLocaleString()} / ${(snap.stepGoal || 10000).toLocaleString()}.`;
-    return `${snap.type} day. Eaten ${Math.round(snap.totals.calories)} / ${snap.targets.calories} kcal (${left} left).${stepLine}\nStill to eat:\n${meals}`;
+    const cookNote = "Grams for chicken, beef, rice, and potato are cooked unless you log them as uncooked.";
+    return `${snap.type} day. Eaten ${Math.round(snap.totals.calories)} / ${snap.targets.calories} kcal (${left} left). P ${Math.round(snap.remaining.protein)} / C ${Math.round(snap.remaining.carbs)} / F ${Math.round(snap.remaining.fat)} left.${stepLine}\n${cookNote}\nStill to eat:\n${meals}`;
   }
 
   if (/train day|rest day|plan|macros|protein|carb|fat/.test(q) && db.plan) {
@@ -460,7 +519,21 @@ async function localHandle(path, opts = {}) {
       if (day.eaten.some((x) => x.kind === "planned" && x.mealId === meal.id)) {
         throw new Error("Already logged");
       }
-      entry = { id: uid(), kind: "planned", mealId: meal.id, name: meal.name, food: meal.food, calories: meal.calories, protein: meal.protein, carbs: meal.carbs, fat: meal.fat, at: new Date().toISOString() };
+      const shown = displayedMeals(db.plan.days[day.type], day.eaten).find((m) => m.id === meal.id) || meal;
+      const actual = Number.isFinite(Number(body.calories)) && Number(body.calories) > 0 && body.food;
+      entry = {
+        id: uid(),
+        kind: "planned",
+        mealId: meal.id,
+        name: actual ? `${meal.name} (changed)` : meal.name,
+        food: actual ? String(body.food) : shown.food,
+        calories: actual ? Number(body.calories) : shown.calories,
+        protein: actual ? Number(body.protein) || 0 : shown.protein,
+        carbs: actual ? Number(body.carbs) || 0 : shown.carbs,
+        fat: actual ? Number(body.fat) || 0 : shown.fat,
+        changed: Boolean(actual),
+        at: new Date().toISOString(),
+      };
     } else {
       entry = {
         id: uid(),
@@ -515,8 +588,8 @@ async function localHandle(path, opts = {}) {
       try {
         const system = window.DietLLM.buildChatSystem(db, date);
         reply = await window.DietLLM.askAnywhere(system, db.chats.messages || [], message);
-      } catch (err) {
-        reply = `${localReply(db, date, message)}\n\n(Full chat is offline right now: ${err.message})`;
+      } catch {
+        reply = localReply(db, date, message);
       }
     }
     const userMsg = { id: uid(), role: "user", content: message, at: new Date().toISOString() };

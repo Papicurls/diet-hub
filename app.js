@@ -165,16 +165,48 @@ function renderToday() {
     .join("");
 
   const eatenIds = new Set((t.eaten || []).filter((x) => x.kind === "planned").map((x) => x.mealId));
-  $("plannedSub").textContent = "Check a meal when you eat it. Ask the agent below if you want a swap.";
-  $("plannedList").innerHTML = t.template.meals
+  $("plannedSub").textContent = "Check the box if you ate it as written. Ate different if the amount changed — leftover or extra goes to the next meal.";
+  const meals = t.displayMeals || t.template.meals;
+  $("plannedList").innerHTML = meals
     .map((m) => {
       const eatenMeal = eatenIds.has(m.id);
-      return `<div class="meal ${eatenMeal ? "is-eaten" : ""}">
+      const note = m.adjusted && !eatenMeal
+        ? `<div class="meal-shift">${escapeHtml(m.adjustNote)}</div>`
+        : "";
+      const swap = eatenMeal
+        ? ""
+        : `<button type="button" class="ghost-btn meal-swap" data-swap="${m.id}">Ate different</button>
+        <form class="swap-form" data-swap-form="${m.id}" hidden>
+          <input name="name" placeholder="${escapeHtml(m.food)}" required />
+          <div class="extra-row">
+            <input name="amount" type="number" min="0" step="any" placeholder="Amount" />
+            <select name="unit">
+              <option value="g">grams</option>
+              <option value="ml">ml</option>
+              <option value="oz">oz</option>
+              <option value="piece">piece / egg</option>
+            </select>
+            <select name="doneness">
+              <option value="cooked" selected>cooked</option>
+              <option value="raw">uncooked</option>
+            </select>
+          </div>
+          <div class="extra-row extra-macros">
+            <input name="calories" type="number" min="0" step="1" placeholder="kcal" />
+            <input name="protein" type="number" min="0" step="0.1" placeholder="P" />
+            <input name="carbs" type="number" min="0" step="0.1" placeholder="C" />
+            <input name="fat" type="number" min="0" step="0.1" placeholder="F" />
+            <button type="submit" class="primary-btn">Log this instead</button>
+          </div>
+        </form>`;
+      return `<div class="meal ${eatenMeal ? "is-eaten" : ""} ${m.adjusted && !eatenMeal ? "is-shifted" : ""}">
         <button class="check" data-meal="${m.id}" ${eatenMeal ? "disabled" : ""} aria-label="Log ${m.name}"></button>
         <div>
           <div class="meal-name">${escapeHtml(m.name)}</div>
           <div class="meal-food">${escapeHtml(m.food)}</div>
           <div class="meal-kcal">${m.calories} kcal · P${m.protein} C${m.carbs} F${m.fat} · ${escapeHtml(m.when)}</div>
+          ${note}
+          ${swap}
         </div>
       </div>`;
     })
@@ -185,7 +217,7 @@ function renderToday() {
     ? eatenList
         .map(
           (x) => `<div class="log-item">
-            <div><div class="log-name">${escapeHtml(x.name)}</div><div class="log-meta">${x.calories} kcal${x.kind === "extra" ? " · extra" : ""}</div></div>
+            <div><div class="log-name">${escapeHtml(x.name)}</div><div class="log-meta">${x.calories} kcal · P${round(x.protein)} C${round(x.carbs)} F${round(x.fat)}${x.kind === "extra" ? " · extra" : x.changed ? " · changed" : ""}</div></div>
             <button class="unlog" data-id="${x.id}" aria-label="Remove">×</button>
           </div>`,
         )
@@ -330,23 +362,27 @@ async function eatPlanned(mealId) {
   renderToday();
 }
 
-async function fillFoodEstimate() {
-  const form = $("extraForm");
+async function fillFoodEstimate(formEl) {
+  const form = formEl || $("extraForm");
   const fd = new FormData(form);
-  const box = $("foodEstimate");
+  const box = form.id === "extraForm" ? $("foodEstimate") : form.querySelector(".food-estimate");
   const est = await window.DietFoods.estimateFood({
     name: fd.get("name"),
     amount: fd.get("amount"),
     unit: fd.get("unit"),
+    doneness: fd.get("doneness"),
   });
   state.foodEstimate = est;
-  form.calories.value = est.calories;
-  form.protein.value = est.protein;
-  form.carbs.value = est.carbs;
-  form.fat.value = est.fat;
+  if (form.calories) form.calories.value = est.calories;
+  if (form.protein) form.protein.value = est.protein;
+  if (form.carbs) form.carbs.value = est.carbs;
+  if (form.fat) form.fat.value = est.fat;
   if (box) {
     box.hidden = false;
-    box.textContent = `${est.name} · ${est.grams} g → ${est.calories} kcal · P ${est.protein}g · C ${est.carbs}g · F ${est.fat}g`;
+    const cook = est.doneness === "uncooked" && est.cookedEquivG
+      ? `${est.grams} g uncooked ≈ ${est.cookedEquivG} g cooked`
+      : `${est.grams} g ${est.doneness || "cooked"}`;
+    box.textContent = `${est.name} · ${cook} → ${est.calories} kcal · P ${est.protein}g · C ${est.carbs}g · F ${est.fat}g`;
   }
   return est;
 }
@@ -359,14 +395,14 @@ async function eatExtra(fields) {
   renderToday();
 }
 
-async function logFoodFromForm(form) {
+async function logFoodFromForm(form, extra = {}) {
   const fd = new FormData(form);
   let calories = Number(fd.get("calories"));
   let protein = Number(fd.get("protein") || 0);
   let carbs = Number(fd.get("carbs") || 0);
   let fat = Number(fd.get("fat") || 0);
   if (!Number.isFinite(calories) || calories <= 0) {
-    const est = await fillFoodEstimate();
+    const est = await fillFoodEstimate(form);
     calories = est.calories;
     protein = est.protein;
     carbs = est.carbs;
@@ -374,12 +410,15 @@ async function logFoodFromForm(form) {
   }
   const amount = fd.get("amount");
   const unit = fd.get("unit") || "g";
+  const doneness = String(fd.get("doneness") || "cooked");
   const name = String(fd.get("name") || "").trim();
-  const label = amount ? `${name} · ${amount} ${unit}` : name;
-  await eatExtra({ name: label, food: label, calories, protein, carbs, fat });
-  form.reset();
+  const weighable = ["g", "oz", "lb"].includes(String(unit));
+  const cookBit = weighable ? (doneness === "raw" ? "uncooked" : "cooked") : "";
+  const label = amount ? `${name} · ${amount} ${unit}${cookBit ? " " + cookBit : ""}` : name;
+  await eatExtra({ name: label, food: label, calories, protein, carbs, fat, ...extra });
+  if (form.id === "extraForm") form.reset();
   state.foodEstimate = null;
-  if ($("foodEstimate")) $("foodEstimate").hidden = true;
+  if (form.id === "extraForm" && $("foodEstimate")) $("foodEstimate").hidden = true;
 }
 
 async function logQuickFood(btn) {
@@ -387,6 +426,8 @@ async function logQuickFood(btn) {
   form.name.value = btn.dataset.food;
   form.amount.value = btn.dataset.amount;
   form.unit.value = btn.dataset.unit;
+  if (form.doneness && btn.dataset.doneness === "raw") form.doneness.value = "raw";
+  else if (form.doneness && (btn.dataset.doneness === "cooked" || !btn.dataset.doneness)) form.doneness.value = "cooked";
   form.calories.value = "";
   try {
     await logFoodFromForm(form);
@@ -523,8 +564,28 @@ function bind() {
     btn.addEventListener("click", () => showView(btn.dataset.section));
   });
   $("plannedList").addEventListener("click", (e) => {
+    const swap = e.target.closest("[data-swap]");
+    if (swap) {
+      const form = $("plannedList").querySelector(`[data-swap-form="${swap.dataset.swap}"]`);
+      if (form) form.hidden = !form.hidden;
+      return;
+    }
     const btn = e.target.closest("[data-meal]");
     if (btn && !btn.disabled) eatPlanned(btn.dataset.meal);
+  });
+  $("plannedList").addEventListener("submit", async (e) => {
+    const form = e.target.closest("[data-swap-form]");
+    if (!form) return;
+    e.preventDefault();
+    try {
+      await logFoodFromForm(form, { mealId: form.dataset.swapForm });
+    } catch (err) {
+      form.hidden = false;
+      const hint = form.querySelector(".swap-error") || document.createElement("div");
+      hint.className = "swap-error";
+      hint.textContent = err.message;
+      form.prepend(hint);
+    }
   });
   $("loggedList").addEventListener("click", (e) => {
     const btn = e.target.closest("[data-id]");

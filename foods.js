@@ -1,34 +1,34 @@
-// Per 100 g, cooked unless noted. kcal / protein / carbs / fat.
+// Per 100 g. Default table is COOKED unless rawPer100 is used.
 const FOODS = [
-  { names: ["chicken breast", "chicken", "breast"], kcal: 165, p: 31, c: 0, f: 3.6 },
-  { names: ["ground beef 90", "90/10", "lean ground beef"], kcal: 199, p: 26, c: 0, f: 10 },
-  { names: ["ground beef 80", "80/20"], kcal: 254, p: 25, c: 0, f: 17 },
-  { names: ["ground beef", "beef", "hamburger"], kcal: 250, p: 26, c: 0, f: 15 },
-  { names: ["steak", "sirloin", "ribeye"], kcal: 271, p: 25, c: 0, f: 19 },
-  { names: ["egg white", "egg whites"], kcal: 52, p: 11, c: 0.7, f: 0.2, pieceG: 33 },
-  { names: ["eggs", "egg"], kcal: 143, p: 13, c: 1.1, f: 10, pieceG: 50 },
-  { names: ["raw milk", "whole milk", "milk"], kcal: 61, p: 3.2, c: 4.8, f: 3.3, cupG: 244 },
-  { names: ["jasmine rice", "white rice", "rice"], kcal: 130, p: 2.7, c: 28, f: 0.3, cupG: 158 },
-  { names: ["potato", "potatoes", "baked potato"], kcal: 87, p: 1.9, c: 20, f: 0.1, cupG: 122 },
-  { names: ["olive oil", "oil"], kcal: 884, p: 0, c: 0, f: 100, tbspG: 13.5 },
-  { names: ["guacamole", "guac", "avocado"], kcal: 160, p: 2, c: 8.5, f: 15, tbspG: 15 },
-  { names: ["banana", "bananas"], kcal: 89, p: 1.1, c: 23, f: 0.3, pieceG: 118 },
-  { names: ["orange", "oranges"], kcal: 47, p: 0.9, c: 12, f: 0.1, pieceG: 131 },
-  { names: ["frozen berries", "berries", "blueberry", "strawberry"], kcal: 57, p: 0.7, c: 14, f: 0.3, cupG: 140 },
-  { names: ["whey", "protein powder"], kcal: 400, p: 80, c: 8, f: 5, tbspG: 15 },
-  { names: ["greek yogurt", "yogurt"], kcal: 97, p: 9, c: 3.6, f: 5, cupG: 245 },
-  { names: ["oats", "oatmeal"], kcal: 389, p: 17, c: 66, f: 7, cupG: 81 },
-  { names: ["peanut butter", "pb"], kcal: 588, p: 25, c: 20, f: 50, tbspG: 16 },
-  { names: ["cheddar", "cheese"], kcal: 402, p: 25, c: 1.3, f: 33 },
-  { names: ["butter"], kcal: 717, p: 0.9, c: 0.1, f: 81, tbspG: 14 },
-  { names: ["tortilla", "tortillas"], kcal: 312, p: 8, c: 51, f: 8, pieceG: 45 },
-  { names: ["sourdough", "bread"], kcal: 265, p: 9, c: 51, f: 3.3, pieceG: 40 },
-  { names: ["pasta", "spaghetti"], kcal: 157, p: 5.8, c: 31, f: 0.9, cupG: 140 },
-  { names: ["salmon"], kcal: 206, p: 22, c: 0, f: 13 },
-  { names: ["shrimp"], kcal: 99, p: 24, c: 0.2, f: 0.3 },
-  { names: ["turkey"], kcal: 135, p: 30, c: 0, f: 1 },
-  { names: ["honey"], kcal: 304, p: 0.3, c: 82, f: 0, tbspG: 21 },
-  { names: ["apple"], kcal: 52, p: 0.3, c: 14, f: 0.2, pieceG: 182 },
+  { names: ["chicken breast", "chicken", "breast"], kcal: 165, p: 31, c: 0, f: 3.6, weigh: "cooked", rawPer100: { kcal: 110, p: 23.1, c: 0, f: 1.2 }, rawToCooked: 0.75 },
+  { names: ["ground beef 90", "90/10", "lean ground beef"], kcal: 199, p: 26, c: 0, f: 10, weigh: "cooked", rawPer100: { kcal: 176, p: 20, c: 0, f: 10 }, rawToCooked: 0.7 },
+  { names: ["ground beef 80", "80/20"], kcal: 254, p: 25, c: 0, f: 17, weigh: "cooked", rawPer100: { kcal: 254, p: 17, c: 0, f: 20 }, rawToCooked: 0.7 },
+  { names: ["ground beef", "beef", "hamburger"], kcal: 250, p: 26, c: 0, f: 15, weigh: "cooked", rawPer100: { kcal: 254, p: 17, c: 0, f: 20 }, rawToCooked: 0.7 },
+  { names: ["steak", "sirloin", "ribeye"], kcal: 271, p: 25, c: 0, f: 19, weigh: "cooked", rawPer100: { kcal: 250, p: 21, c: 0, f: 19 }, rawToCooked: 0.75 },
+  { names: ["egg white", "egg whites"], kcal: 52, p: 11, c: 0.7, f: 0.2, pieceG: 33, weigh: "count" },
+  { names: ["eggs", "egg"], kcal: 143, p: 13, c: 1.1, f: 10, pieceG: 50, weigh: "count" },
+  { names: ["raw milk", "whole milk", "milk"], kcal: 61, p: 3.2, c: 4.8, f: 3.3, cupG: 244, weigh: "liquid" },
+  { names: ["jasmine rice", "white rice", "rice"], kcal: 130, p: 2.7, c: 28, f: 0.3, cupG: 158, weigh: "cooked", rawPer100: { kcal: 365, p: 7.1, c: 80, f: 0.6 }, rawToCooked: 3 },
+  { names: ["potato", "potatoes", "baked potato"], kcal: 87, p: 1.9, c: 20, f: 0.1, cupG: 122, weigh: "cooked", rawPer100: { kcal: 77, p: 2, c: 17, f: 0.1 }, rawToCooked: 0.8 },
+  { names: ["olive oil", "oil"], kcal: 884, p: 0, c: 0, f: 100, tbspG: 13.5, weigh: "liquid" },
+  { names: ["guacamole", "guac", "avocado"], kcal: 160, p: 2, c: 8.5, f: 15, tbspG: 15, weigh: "as-is" },
+  { names: ["banana", "bananas"], kcal: 89, p: 1.1, c: 23, f: 0.3, pieceG: 118, weigh: "count" },
+  { names: ["orange", "oranges"], kcal: 47, p: 0.9, c: 12, f: 0.1, pieceG: 131, weigh: "count" },
+  { names: ["frozen berries", "berries", "blueberry", "strawberry"], kcal: 57, p: 0.7, c: 14, f: 0.3, cupG: 140, weigh: "as-is" },
+  { names: ["whey", "protein powder"], kcal: 400, p: 80, c: 8, f: 5, tbspG: 15, weigh: "dry" },
+  { names: ["greek yogurt", "yogurt"], kcal: 97, p: 9, c: 3.6, f: 5, cupG: 245, weigh: "as-is" },
+  { names: ["oats", "oatmeal"], kcal: 389, p: 17, c: 66, f: 7, cupG: 81, weigh: "dry", rawPer100: { kcal: 389, p: 17, c: 66, f: 7 } },
+  { names: ["peanut butter", "pb"], kcal: 588, p: 25, c: 20, f: 50, tbspG: 16, weigh: "as-is" },
+  { names: ["cheddar", "cheese"], kcal: 402, p: 25, c: 1.3, f: 33, weigh: "as-is" },
+  { names: ["butter"], kcal: 717, p: 0.9, c: 0.1, f: 81, tbspG: 14, weigh: "as-is" },
+  { names: ["tortilla", "tortillas"], kcal: 312, p: 8, c: 51, f: 8, pieceG: 45, weigh: "count" },
+  { names: ["sourdough", "bread"], kcal: 265, p: 9, c: 51, f: 3.3, pieceG: 40, weigh: "count" },
+  { names: ["pasta", "spaghetti"], kcal: 157, p: 5.8, c: 31, f: 0.9, cupG: 140, weigh: "cooked", rawPer100: { kcal: 371, p: 13, c: 75, f: 1.5 }, rawToCooked: 2.2 },
+  { names: ["salmon"], kcal: 206, p: 22, c: 0, f: 13, weigh: "cooked", rawPer100: { kcal: 208, p: 20, c: 0, f: 13 }, rawToCooked: 0.75 },
+  { names: ["shrimp"], kcal: 99, p: 24, c: 0.2, f: 0.3, weigh: "cooked", rawPer100: { kcal: 85, p: 20, c: 0, f: 0.5 }, rawToCooked: 0.75 },
+  { names: ["turkey"], kcal: 135, p: 30, c: 0, f: 1, weigh: "cooked", rawPer100: { kcal: 104, p: 24, c: 0, f: 1 }, rawToCooked: 0.75 },
+  { names: ["honey"], kcal: 304, p: 0.3, c: 82, f: 0, tbspG: 21, weigh: "liquid" },
+  { names: ["apple"], kcal: 52, p: 0.3, c: 14, f: 0.2, pieceG: 182, weigh: "count" },
 ];
 
 function gramsFor(food, amount, unit) {
@@ -80,16 +80,18 @@ function parseEmbeddedAmount(name) {
   return { amount, unit, label: q.replace(m[0], "").replace(/^[x×, ]+|[ ,]+$/g, "").trim() || q };
 }
 
-function scaleFood(food, grams) {
+function scaleFood(food, grams, { label, doneness } = {}) {
   const k = grams / 100;
   return {
-    name: food.names[0],
+    name: label || food.names[0],
     grams: Math.round(grams),
     calories: Math.round(food.kcal * k),
     protein: Math.round(food.p * k * 10) / 10,
     carbs: Math.round(food.c * k * 10) / 10,
     fat: Math.round(food.f * k * 10) / 10,
     source: "library",
+    doneness: doneness || (food.weigh === "cooked" ? "cooked" : food.weigh || "as-is"),
+    rawGrams: null,
   };
 }
 
@@ -129,7 +131,7 @@ async function lookupUsda(query, grams) {
   };
 }
 
-async function estimateFood({ name, amount, unit }) {
+async function estimateFood({ name, amount, unit, doneness }) {
   const embedded = parseEmbeddedAmount(name);
   const foodName = (embedded && !amount ? embedded.label : name) || name;
   const qty = amount || embedded?.amount;
@@ -137,10 +139,47 @@ async function estimateFood({ name, amount, unit }) {
   const local = findFood(foodName);
   const grams = local ? gramsFor(local, qty, useUnit) : gramsFor({ cupG: 240, tbspG: 15, pieceG: 100 }, qty, useUnit);
   if (!grams) throw new Error("Add how much you ate.");
-  if (local) return scaleFood(local, grams);
+  const nameSaysRaw = /\b(uncooked|dry)\b/.test(String(foodName || "").toLowerCase())
+    || (/\braw\b/.test(String(foodName || "").toLowerCase()) && !/\braw milk\b/.test(String(foodName || "").toLowerCase()));
+  const wantRaw = String(doneness || "").toLowerCase() === "raw"
+    || String(doneness || "").toLowerCase() === "uncooked"
+    || String(doneness || "").toLowerCase() === "dry"
+    || nameSaysRaw;
+  if (local) {
+    const weigh = local.weigh || "cooked";
+    if (weigh === "cooked" && wantRaw && local.rawPer100) {
+      const raw = local.rawPer100;
+      const cookedG = local.rawToCooked ? grams * local.rawToCooked : grams;
+      const k = grams / 100;
+      return {
+        name: `${local.names[0]} (uncooked)`,
+        grams: Math.round(grams),
+        calories: Math.round(raw.kcal * k),
+        protein: Math.round(raw.p * k * 10) / 10,
+        carbs: Math.round(raw.c * k * 10) / 10,
+        fat: Math.round(raw.f * k * 10) / 10,
+        source: "library",
+        doneness: "uncooked",
+        cookedEquivG: Math.round(cookedG),
+      };
+    }
+    if (weigh === "cooked") {
+      return scaleFood(local, grams, { label: `${local.names[0]} (cooked)`, doneness: "cooked" });
+    }
+    if (weigh === "dry") {
+      return scaleFood(local, grams, { label: `${local.names[0]} (dry)`, doneness: "dry" });
+    }
+    if (weigh === "count") {
+      return scaleFood(local, grams, { label: local.names[0], doneness: "count" });
+    }
+    return scaleFood(local, grams, { label: `${local.names[0]} (${weigh})`, doneness: weigh });
+  }
   try {
     const usda = await lookupUsda(foodName, grams);
-    if (usda && usda.calories > 0) return usda;
+    if (usda && usda.calories > 0) {
+      usda.doneness = wantRaw ? "uncooked (USDA)" : "as listed — check cooked vs uncooked";
+      return usda;
+    }
   } catch {
     /* offline */
   }
