@@ -18,7 +18,7 @@
   .sidebar { top: auto !important; height: auto !important; bottom: 0 !important; }
 }
 </style>
-<link rel="stylesheet" href="styles.css?v=13" />
+<link rel="stylesheet" href="styles.css?v=14" />
 </head>
 <body>
   <div id="installBanner" class="install-banner" hidden>
@@ -79,11 +79,11 @@
           <div class="gate-actions">
             <button class="gate-btn train" id="pickTrain">
               <span class="gate-label">Train</span>
-              <span class="gate-meta">~3,025 kcal · rice + potato around the lift</span>
+              <span class="gate-meta">~2,940 kcal · rice pre/post lift · 4 meals</span>
             </button>
             <button class="gate-btn rest" id="pickRest">
               <span class="gate-label">Rest</span>
-              <span class="gate-meta">~2,350 kcal · beef, smoothie, no rice</span>
+              <span class="gate-meta">~2,760 kcal · potatoes · 4 meals</span>
             </button>
           </div>
         </div>
@@ -118,13 +118,12 @@
               <p class="card-sub">If this replaces a planned meal, tap <strong>Ate different</strong> on that meal so the next meal’s amounts shift. Grams are cooked unless you pick uncooked.</p>
               <div class="quick-adds" id="quickAdds">
                 <button type="button" class="quick-chip" data-food="eggs" data-amount="4" data-unit="piece" data-doneness="count">4 eggs</button>
-                <button type="button" class="quick-chip" data-food="chicken breast" data-amount="150" data-unit="g" data-doneness="cooked">Chicken 150g cooked</button>
-                <button type="button" class="quick-chip" data-food="chicken breast" data-amount="200" data-unit="g" data-doneness="cooked">Chicken 200g cooked</button>
-                <button type="button" class="quick-chip" data-food="rice" data-amount="200" data-unit="g" data-doneness="cooked">Rice 200g cooked</button>
-                <button type="button" class="quick-chip" data-food="rice" data-amount="400" data-unit="g" data-doneness="cooked">Rice 400g cooked</button>
-                <button type="button" class="quick-chip" data-food="ground beef" data-amount="175" data-unit="g" data-doneness="cooked">Beef 175g cooked</button>
+                <button type="button" class="quick-chip" data-food="chicken breast" data-amount="180" data-unit="g" data-doneness="cooked">Chicken 180g cooked</button>
+                <button type="button" class="quick-chip" data-food="93/7 ground beef" data-amount="125" data-unit="g" data-doneness="cooked">93/7 beef 125g cooked</button>
+                <button type="button" class="quick-chip" data-food="jasmine rice" data-amount="200" data-unit="g" data-doneness="cooked">Rice 200g cooked</button>
+                <button type="button" class="quick-chip" data-food="diced potato" data-amount="300" data-unit="g" data-doneness="cooked">Potato 300g cooked</button>
                 <button type="button" class="quick-chip" data-food="raw milk" data-amount="250" data-unit="ml" data-doneness="liquid">Milk 250ml</button>
-                <button type="button" class="quick-chip" data-food="potato" data-amount="300" data-unit="g" data-doneness="cooked">Potato 300g cooked</button>
+                <button type="button" class="quick-chip" data-food="coconut water" data-amount="330" data-unit="ml" data-doneness="liquid">Coconut water 330ml</button>
               </div>
               <div class="extra-row">
                 <input name="name" placeholder="Chicken breast, rice, eggs…" required />
@@ -197,7 +196,7 @@
           <div class="header-row">
             <div>
               <h1>Diet plan</h1>
-              <p class="sub">Edit meals anytime. Potatoes are in on train-day post-lift. Saving retotals the day’s calories from the meals.</p>
+              <p class="sub">Edit meals anytime. 4 meals on train and rest. Saving retotals the day’s calories from the meals.</p>
             </div>
             <button id="savePlanBtn" class="primary-btn">Save plan</button>
           </div>
@@ -227,10 +226,10 @@
     </main>
   </div>
 
-  <script src="seed.js?v=13"></script>
-  <script src="store.js?v=13"></script>
-  <script src="foods.js?v=13"></script>
-  <script src="llm.js?v=13"></script>
-  <script src="app.js?v=13"></script>
+  <script src="seed.js?v=14"></script>
+  <script src="store.js?v=14"></script>
+  <script src="foods.js?v=14"></script>
+  <script src="llm.js?v=14"></script>
+  <script src="app.js?v=14"></script>
 </body>
 </html>

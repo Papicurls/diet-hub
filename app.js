@@ -294,6 +294,12 @@ function collectPlanFromDom() {
   return { days, rules };
 }
 
+const BEEF_FATS = ["93/7", "90/10", "85/15", "80/20"];
+
+function isBeefHaul(item) {
+  return item.id === "ground-beef" || /ground\s*beef/i.test(item.item || "");
+}
+
 function renderGrocery() {
   const g = state.grocery;
   if (!g) return;
@@ -304,14 +310,20 @@ function renderGrocery() {
       <input class="grocery-note" id="groceryNote" value="${escapeHtml(g.note || "")}" placeholder="Note for this haul" />
       <div id="haulList">
         ${(g.items || [])
-          .map(
-            (i) => `<div class="haul-item ${i.have ? "is-have" : ""}" data-id="${escapeHtml(i.id)}">
+          .map((i) => {
+            const beef = isBeefHaul(i)
+              ? `<select data-field="beefFat" class="beef-fat" aria-label="Ground beef fat percent">${BEEF_FATS.map(
+                  (f) => `<option value="${f}" ${ (i.beefFat || "93/7") === f ? "selected" : ""}>${f}</option>`,
+                ).join("")}</select>`
+              : "";
+            return `<div class="haul-item ${i.have ? "is-have" : ""} ${beef ? "is-beef" : ""}" data-id="${escapeHtml(i.id)}">
               <input type="checkbox" data-have ${i.have ? "checked" : ""} />
               <input type="text" data-field="item" value="${escapeHtml(i.item)}" />
               <input type="text" data-field="amount" value="${escapeHtml(i.amount)}" />
+              ${beef}
               <button type="button" class="unlog" data-delete aria-label="Remove">×</button>
-            </div>`,
-          )
+            </div>`;
+          })
           .join("")}
       </div>
       <form id="groceryAddForm" class="grocery-add">

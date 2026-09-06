@@ -460,6 +460,15 @@ body {
   padding: 10px 0;
   border-top: 1px solid var(--border);
 }
+.haul-item.is-beef {
+  grid-template-columns: 22px 1fr 100px 88px 32px;
+}
+.beef-fat {
+  font-family: inherit; font-size: 13px;
+  border: 1px solid var(--border); border-radius: var(--radius-sm);
+  background: var(--surface-2); color: var(--text-primary);
+  padding: 7px 8px; width: 100%;
+}
 .haul-item:first-of-type { border-top: none; }
 .haul-item.is-have input[data-field="item"] { text-decoration: line-through; color: var(--text-muted); }
 .haul-item input[type="checkbox"] { width: 16px; height: 16px; accent-color: var(--slot-3); }
@@ -506,6 +515,8 @@ body {
   .main { padding: 20px 16px 24px; }
   .bubble { max-width: 90%; }
   .haul-item { grid-template-columns: 22px 1fr 32px; }
-  .haul-item input[data-field="amount"] { grid-column: 2; }
+  .haul-item.is-beef { grid-template-columns: 22px 1fr 32px; }
+  .haul-item input[data-field="amount"],
+  .haul-item .beef-fat { grid-column: 2; }
   .primary-btn, .ghost-btn, .nav-item, .gate-btn { min-height: 44px; }
 }

@@ -1,5 +1,6 @@
 {
-  "note": "This week's haul. Check off what you already have. Edit amounts anytime. Potatoes are in — 400 g cooked post-lift × 5 train days.",
+  "note": "This week's haul. Pick the ground-beef fat % you actually buy — plan is written for 93/7. Potatoes are rest-day carbs. Rice is train-day (pre/post lift).",
+  "seedVersion": "2026-09-06-4meals",
   "items": [
     {
       "id": "chicken-breast",
@@ -9,15 +10,16 @@
       "category": "protein"
     },
     {
-      "id": "ground-beef-farm",
-      "item": "Ground beef (farm)",
-      "amount": "1.5 lb",
+      "id": "ground-beef",
+      "item": "Ground beef",
+      "amount": "2.5 lb",
       "have": false,
-      "category": "protein"
+      "category": "protein",
+      "beefFat": "93/7"
     },
     {
       "id": "eggs",
-      "item": "Eggs",
+      "item": "Farm eggs",
       "amount": "3 dozen",
       "have": false,
       "category": "protein"
@@ -31,15 +33,22 @@
     },
     {
       "id": "white-jasmine-rice",
-      "item": "White/jasmine rice",
-      "amount": "5 lb dry",
+      "item": "Jasmine rice",
+      "amount": "6 lb dry",
       "have": false,
       "category": "carbs"
     },
     {
       "id": "potatoes",
-      "item": "Potatoes",
-      "amount": "8 lb",
+      "item": "Diced potatoes",
+      "amount": "10 lb",
+      "have": false,
+      "category": "carbs"
+    },
+    {
+      "id": "coconut-water",
+      "item": "Coconut water",
+      "amount": "3 × 1 L",
       "have": false,
       "category": "carbs"
     },
@@ -49,20 +58,6 @@
       "amount": "1 bottle",
       "have": true,
       "category": "fat"
-    },
-    {
-      "id": "guacamole",
-      "item": "Guacamole",
-      "amount": "16 oz tub",
-      "have": false,
-      "category": "fat"
-    },
-    {
-      "id": "oranges",
-      "item": "Oranges",
-      "amount": "5",
-      "have": false,
-      "category": "fruit"
     },
     {
       "id": "bananas",
@@ -84,20 +79,6 @@
       "amount": "as needed",
       "have": true,
       "category": "pantry"
-    },
-    {
-      "id": "ground-beef-on-hand",
-      "item": "Ground beef (on hand)",
-      "amount": "1 lb",
-      "have": true,
-      "category": "protein"
-    },
-    {
-      "id": "raw-chicken-on-hand",
-      "item": "Raw chicken (on hand)",
-      "amount": "150 g",
-      "have": true,
-      "category": "protein"
     }
   ]
 }

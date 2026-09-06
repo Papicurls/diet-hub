@@ -122,9 +122,28 @@ function onServer() {
 function seedIfNeeded() {
   const db = readDb();
   const seed = window.DIET_SEED || {};
-  if (!db.plan) db.plan = seed.plan || null;
+  const seedVer = seed.plan?.version;
+  if (!db.plan || (seedVer && db.plan.version !== seedVer)) {
+    db.plan = seed.plan || db.plan;
+  }
   if (!db.grocery || !db.grocery.items || !db.grocery.items.length) {
     db.grocery = seed.grocery || { note: "", items: [] };
+  } else if (seed.grocery && seedVer && db.grocery.seedVersion !== seedVer) {
+    const prevById = new Map((db.grocery.items || []).map((i) => [i.id, i]));
+    db.grocery = {
+      note: seed.grocery.note || db.grocery.note,
+      seedVersion: seedVer,
+      items: (seed.grocery.items || []).map((s) => {
+        const prev = prevById.get(s.id);
+        if (!prev) return { ...s };
+        return {
+          ...s,
+          have: prev.have,
+          amount: prev.amount || s.amount,
+          beefFat: prev.beefFat || s.beefFat,
+        };
+      }),
+    };
   }
   if (!db.plan) throw new Error("Plan failed to load. Refresh the page.");
   writeDb(db);
