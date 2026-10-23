@@ -13,18 +13,13 @@
 <link rel="manifest" href="manifest.json" />
 <link rel="icon" href="icon.svg" />
 <link rel="apple-touch-icon" href="icon-180.png?v=15" />
-<style>
-@media (max-width: 860px) {
-  .sidebar { top: auto !important; height: auto !important; bottom: 0 !important; }
-}
-</style>
-<link rel="stylesheet" href="styles.css?v=16" />
+<link rel="stylesheet" href="styles.css?v=17" />
 </head>
 <body>
   <div id="installBanner" class="install-banner" hidden>
     <div>
       <strong>Add Diet Hub to your home screen.</strong>
-      Tap Share, then Add to Home Screen. After that it’s just an icon — no laptop needed for meals and grocery.
+      Tap Share, then Add to Home Screen. After that it’s just an icon.
     </div>
     <button type="button" class="ghost-btn" id="dismissInstall">Got it</button>
   </div>
@@ -39,122 +34,77 @@
       </div>
 
       <nav class="nav" id="nav">
-        <button class="nav-item is-active" data-section="today">
-          <span class="nav-dot dot-1"></span>Today
-        </button>
-        <button class="nav-item" data-section="grocery">
-          <span class="nav-dot dot-2"></span>Grocery
-        </button>
-        <button class="nav-item" data-section="plan">
-          <span class="nav-dot dot-3"></span>Plan
-        </button>
-        <button class="nav-item" data-section="agent">
-          <span class="nav-dot dot-7"></span>Ask
-        </button>
+        <button class="nav-item is-active" data-section="today"><span class="nav-dot dot-1"></span>Today</button>
+        <button class="nav-item" data-section="weight"><span class="nav-dot dot-3"></span>Progress</button>
+        <button class="nav-item" data-section="grocery"><span class="nav-dot dot-2"></span>Grocery</button>
+        <button class="nav-item" data-section="agent"><span class="nav-dot dot-7"></span>Ask</button>
+        <button class="nav-item" data-section="setup"><span class="nav-dot dot-0"></span>Setup</button>
       </nav>
 
       <div class="sidebar-footer">
         <div class="refresh-row">
-          <button id="switchDayBtn" class="ghost-btn">Switch day type</button>
-          <button id="themeBtn" class="ghost-btn" title="Toggle theme">◐</button>
+          <button id="themeBtn" class="ghost-btn" title="Toggle theme">◐ Theme</button>
         </div>
-        <div class="meta-line" id="metaLine">loading…</div>
+        <div class="meta-line" id="metaLine">Your log lives on this device.</div>
       </div>
     </aside>
 
     <main class="main">
-      <section class="view" id="view-grocery" data-view hidden>
-        <header class="view-header">
-          <h1>Grocery list</h1>
-          <p class="sub">What to buy this week. Check off what you already have. Change amounts or add items.</p>
-        </header>
-        <div id="groceryContent"><p class="need-count">Opening grocery list…</p></div>
-      </section>
-
+      <!-- TODAY -->
       <section class="view" id="view-today" data-view>
-        <div id="dayGate" class="gate-inline" hidden>
-          <div class="gate-kicker" id="gateKicker">Today</div>
-          <h1>Train day or rest day?</h1>
-          <p>Pick one to log meals. Grocery stays in the sidebar.</p>
-          <div class="gate-actions">
-            <button class="gate-btn train" id="pickTrain">
-              <span class="gate-label">Train</span>
-              <span class="gate-meta">~2,940 kcal · rice pre/post lift · 4 meals</span>
-            </button>
-            <button class="gate-btn rest" id="pickRest">
-              <span class="gate-label">Rest</span>
-              <span class="gate-meta">~2,760 kcal · potatoes · 4 meals</span>
-            </button>
+        <header class="today-head">
+          <div>
+            <div class="kicker" id="todayDate">Today</div>
+            <h1>Today</h1>
           </div>
+          <div class="seg" id="dayTypeSeg" role="group" aria-label="Day type">
+            <button type="button" data-type="train">Train</button>
+            <button type="button" data-type="rest">Rest</button>
+          </div>
+        </header>
+
+        <button type="button" class="nudge" id="checkinNudge" hidden></button>
+
+        <div class="card hero-card">
+          <div class="hero-row">
+            <div>
+              <div class="hero-num" id="kcalLeft">—</div>
+              <div class="hero-label" id="kcalLeftLabel">kcal left</div>
+            </div>
+            <div class="hero-side">
+              <div id="kcalSide"></div>
+              <div class="macro-status" id="kcalStatus"></div>
+            </div>
+          </div>
+          <div id="macroRows" class="macro-rows"></div>
         </div>
 
-        <div id="todayBody">
-        <header class="view-header">
-          <div class="header-row">
-            <div>
-              <h1 id="todayTitle">Today</h1>
-              <p class="sub" id="todaySub">Log planned meals or anything extra. Remaining calories update live.</p>
+        <div class="card">
+          <h2>Log food</h2>
+          <p class="card-sub">Say it (Wispr Flow or the keyboard mic), type it, or tap a meal. You check it before it’s logged.</p>
+          <form id="sayForm" class="say-form">
+            <input id="sayInput" type="text" autocomplete="off" enterkeyhint="go" placeholder="250 g chicken, 120 g uncooked rice…" aria-label="What did you eat?" />
+            <button type="submit" class="primary-btn">Add</button>
+          </form>
+          <div class="meal-grid" id="mealGrid"></div>
+          <div class="quick-adds" id="quickAdds"></div>
+        </div>
+
+        <div class="card" id="suggestCard">
+          <div class="card-head">
+            <h2>What to eat next</h2>
+            <div class="seg small" id="mealsLeftSeg" role="group" aria-label="Meals left today">
+              <button type="button" data-n="1">1 meal left</button>
+              <button type="button" data-n="2">2 left</button>
             </div>
-            <button type="button" class="ghost-btn" id="changeDayBtn">Switch to train day</button>
           </div>
-        </header>
+          <div id="suggestBody"></div>
+        </div>
 
-        <div class="stat-tiles" id="statTiles"></div>
-
-        <div class="macro-bars" id="macroBars"></div>
-
-        <div class="split">
-          <div class="card">
-            <h2>Planned meals</h2>
-            <p class="card-sub" id="plannedSub">Check a meal when you eat it.</p>
-            <div id="plannedList"></div>
-          </div>
-          <div class="card">
-            <h2>Logged</h2>
-            <p class="card-sub">Tap × to undo.</p>
-            <div id="loggedList"></div>
-            <form id="extraForm" class="extra-form">
-              <div class="extra-title">Ate something else</div>
-              <p class="card-sub">Anything you log here counts toward today. The next planned meal automatically shrinks or grows so you still hit the day’s target. Grams are cooked unless you pick uncooked.</p>
-              <div class="quick-adds" id="quickAdds">
-                <button type="button" class="quick-chip" data-food="eggs" data-amount="4" data-unit="piece" data-doneness="count">4 eggs</button>
-                <button type="button" class="quick-chip" data-food="chicken breast" data-amount="180" data-unit="g" data-doneness="cooked">Chicken 180g cooked</button>
-                <button type="button" class="quick-chip" data-food="93/7 ground beef" data-amount="125" data-unit="g" data-doneness="cooked">93/7 beef 125g cooked</button>
-                <button type="button" class="quick-chip" data-food="jasmine rice" data-amount="200" data-unit="g" data-doneness="cooked">Rice 200g cooked</button>
-                <button type="button" class="quick-chip" data-food="diced potato" data-amount="300" data-unit="g" data-doneness="cooked">Potato 300g cooked</button>
-                <button type="button" class="quick-chip" data-food="raw milk" data-amount="250" data-unit="ml" data-doneness="liquid">Milk 250ml</button>
-                <button type="button" class="quick-chip" data-food="coconut water" data-amount="330" data-unit="ml" data-doneness="liquid">Coconut water 330ml</button>
-              </div>
-              <div class="extra-row">
-                <input name="name" placeholder="Chicken breast, rice, eggs…" required />
-              </div>
-              <div class="extra-row">
-                <input name="amount" type="number" min="0" step="any" placeholder="Amount" />
-                <select name="unit" id="foodUnit">
-                  <option value="g">grams</option>
-                  <option value="ml">ml</option>
-                  <option value="oz">oz</option>
-                  <option value="lb">lb</option>
-                  <option value="cup">cup</option>
-                  <option value="tbsp">tbsp</option>
-                  <option value="piece">piece / egg</option>
-                </select>
-                <select name="doneness" id="foodDoneness" title="Cooked or uncooked">
-                  <option value="cooked">cooked weight</option>
-                  <option value="raw">uncooked / dry</option>
-                </select>
-                <button type="button" class="ghost-btn" id="estimateFoodBtn">Estimate</button>
-              </div>
-              <div id="foodEstimate" class="food-estimate" hidden></div>
-              <div class="extra-row extra-macros">
-                <input name="calories" type="number" min="0" step="1" placeholder="kcal" />
-                <input name="protein" type="number" min="0" step="0.1" placeholder="P g" />
-                <input name="carbs" type="number" min="0" step="0.1" placeholder="C g" />
-                <input name="fat" type="number" min="0" step="0.1" placeholder="F g" />
-                <button type="submit" class="primary-btn">Log it</button>
-              </div>
-            </form>
-          </div>
+        <div class="card">
+          <h2>Logged today</h2>
+          <p class="card-sub">Tap an entry to change it.</p>
+          <div id="loggedList"></div>
         </div>
 
         <details class="card steps-card" id="stepsCard">
@@ -188,29 +138,73 @@
             <button type="button" class="primary-btn" id="runHealthShortcut">I added it — run it</button>
           </div>
         </details>
-        </div>
       </section>
 
-      <section class="view" id="view-plan" data-view hidden>
+      <!-- PROGRESS: check-in, weight, history -->
+      <section class="view" id="view-weight" data-view hidden>
         <header class="view-header">
-          <div class="header-row">
-            <div>
-              <h1>Diet plan</h1>
-              <p class="sub">Edit meals anytime. 4 meals on train and rest. Saving retotals the day’s calories from the meals.</p>
-            </div>
-            <button id="savePlanBtn" class="primary-btn">Save plan</button>
-          </div>
+          <h1>Progress</h1>
+          <p class="sub">Weigh in the morning before you eat. The 7-day average smooths out day-to-day water swings.</p>
         </header>
-        <div id="planSaveStatus" class="save-status" hidden></div>
-        <div id="planContent"></div>
+        <button type="button" class="nudge" id="backupNudge" hidden></button>
+        <div class="card" id="checkinCard">
+          <h2>Weekly check-in</h2>
+          <div id="checkinBody"></div>
+        </div>
+        <form id="weightForm" class="card weight-form">
+          <label class="field">
+            <span>Date</span>
+            <input type="date" name="date" required />
+          </label>
+          <label class="field">
+            <span>Weight (lb)</span>
+            <input type="number" name="lb" step="0.1" min="50" max="500" inputmode="decimal" placeholder="158.4" required />
+          </label>
+          <button type="submit" class="primary-btn">Save</button>
+        </form>
+        <div class="stat-tiles" id="weightTiles"></div>
+        <div class="card">
+          <div class="card-head">
+            <h2>Last 60 days</h2>
+            <div class="legend" aria-hidden="true">
+              <span class="legend-item"><span class="key-dot"></span>Weigh-in</span>
+              <span class="legend-item"><span class="key-line"></span>7-day average</span>
+            </div>
+          </div>
+          <div id="weightChart" class="chart"></div>
+        </div>
+        <div class="card">
+          <h2>Week by week</h2>
+          <p class="card-sub">Averages over the days you logged. Today isn’t counted until it’s over.</p>
+          <div id="weeksList"></div>
+        </div>
+        <div class="card">
+          <h2>Past days</h2>
+          <p class="card-sub">Tap a day to see it. Forgot something? Add it to that day.</p>
+          <div id="historyList"></div>
+        </div>
+        <details class="card steps-card">
+          <summary class="steps-summary"><span>All weigh-ins</span><span class="steps-summary-readout" id="weighinCount"></span></summary>
+          <div id="weightList"></div>
+        </details>
       </section>
 
+      <!-- GROCERY -->
+      <section class="view" id="view-grocery" data-view hidden>
+        <header class="view-header">
+          <h1>Grocery list</h1>
+          <p class="sub">What to buy this week. Check off what you already have. Change amounts or add items.</p>
+        </header>
+        <div id="groceryContent"></div>
+      </section>
+
+      <!-- ASK -->
       <section class="view" id="view-agent" data-view hidden>
         <header class="view-header">
           <div class="header-row">
             <div>
-              <h1>Ask the agent</h1>
-              <p class="sub">Ask anything. It sees today’s log. Amounts are cooked unless you say uncooked.</p>
+              <h1>Ask</h1>
+              <p class="sub">It sees today’s log, what’s left, your meals, the last week and your weight. Free AI: replies take up to a minute.</p>
             </div>
             <button id="clearChatBtn" class="ghost-btn">Clear chat</button>
           </div>
@@ -218,18 +212,79 @@
         <div class="chat-shell">
           <div id="chatLog" class="chat-log"></div>
           <form id="chatForm" class="chat-form">
-            <input id="chatInput" autocomplete="off" placeholder="Ask me anything" />
+            <input id="chatInput" autocomplete="off" placeholder="What should I eat for dinner?" />
             <button type="submit" class="primary-btn" id="chatSend">Ask</button>
           </form>
+        </div>
+      </section>
+
+      <!-- SETUP -->
+      <section class="view" id="view-setup" data-view hidden>
+        <header class="view-header">
+          <h1>Setup</h1>
+          <p class="sub">Your targets, your meals, and foods you’ve added.</p>
+        </header>
+        <form class="card" id="targetsForm">
+          <h2>Daily targets</h2>
+          <p class="card-sub">Every day starts as a train day. Flip to rest on Today when you take one.</p>
+          <div class="targets-grid" id="targetsGrid"></div>
+          <h3 class="sub-head">When does a number count as hit?</h3>
+          <div class="hit-rules">
+            <label class="field inline-field"><span>Calories within ±</span><input type="number" name="kcalWindow" min="0" step="10" inputmode="numeric" /><span>kcal</span></label>
+            <label class="field inline-field"><span>Carbs and fat within ±</span><input type="number" name="carbFatPct" min="0" step="1" inputmode="numeric" /><span>%</span></label>
+            <p class="card-sub">Protein counts as hit at your target or above.</p>
+          </div>
+          <div class="form-actions">
+            <span id="targetsStatus" class="save-status" hidden></span>
+            <button type="submit" class="primary-btn">Save targets</button>
+          </div>
+        </form>
+        <div class="card">
+          <h2>Your meals</h2>
+          <p class="card-sub">These are the buttons on Today. Amounts here are the starting point. After you log a meal, it starts from what you logged last time.</p>
+          <div id="mealsList"></div>
+          <button type="button" class="ghost-btn" id="addMealBtn">+ New meal</button>
+        </div>
+        <div class="card">
+          <h2>Your foods</h2>
+          <p class="card-sub">Packaged foods you’ve scanned or typed in.</p>
+          <div id="customList"></div>
+          <button type="button" class="ghost-btn" id="addCustomBtn">+ Add a food by hand</button>
+        </div>
+        <div class="card" id="backupCard">
+          <h2>Backup</h2>
+          <p class="card-sub">Your log only lives on this phone. Back up about once a week and save the file to iCloud Drive or Files. If you delete the app or switch phones, Restore brings everything back.</p>
+          <p class="backup-status" id="backupStatus"></p>
+          <div class="row-btns">
+            <button type="button" class="primary-btn" id="backupBtn">Back up now</button>
+            <button type="button" class="ghost-btn" id="restoreBtn">Restore from a file</button>
+          </div>
         </div>
       </section>
     </main>
   </div>
 
-  <script src="seed.js?v=16"></script>
-  <script src="store.js?v=16"></script>
-  <script src="foods.js?v=16"></script>
-  <script src="llm.js?v=16"></script>
-  <script src="app.js?v=16"></script>
+  <div class="sheet-backdrop" id="sheet" hidden>
+    <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="sheetTitle">
+      <div class="sheet-head">
+        <h2 id="sheetTitle"></h2>
+        <button type="button" class="unlog" data-close aria-label="Close">×</button>
+      </div>
+      <div id="sheetBody"></div>
+    </div>
+  </div>
+
+  <input type="file" id="scanInput" accept="image/*" capture="environment" hidden />
+  <input type="file" id="labelInput" accept="image/*" capture="environment" hidden />
+  <input type="file" id="restoreInput" accept="application/json,.json" hidden />
+
+  <script src="seed.js?v=17"></script>
+  <script src="foods.js?v=17"></script>
+  <script src="store.js?v=17"></script>
+  <script src="suggest.js?v=17"></script>
+  <script src="voice.js?v=17"></script>
+  <script src="scan.js?v=17"></script>
+  <script src="llm.js?v=17"></script>
+  <script src="app.js?v=17"></script>
 </body>
 </html>

@@ -1,8 +1,21 @@
+// Everything lives in this phone's localStorage. The key stays the same as the old
+// planned-meals version so existing logs carry over; migrate() upgrades the shape.
 const DB_KEY = "diet-hub-db-v1";
+const DB_VERSION = 2;
 
-function todayKey(date) {
-  if (typeof date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(date)) return date;
+function todayKey() {
   return new Date().toLocaleDateString("en-CA");
+}
+
+function parseDate(key) {
+  const [y, m, d] = key.split("-").map(Number);
+  return new Date(y, m - 1, d);
+}
+
+function addDays(key, n) {
+  const d = parseDate(key);
+  d.setDate(d.getDate() + n);
+  return d.toLocaleDateString("en-CA");
 }
 
 function uid() {
@@ -10,27 +23,15 @@ function uid() {
   return "id-" + Date.now().toString(16) + "-" + Math.random().toString(16).slice(2);
 }
 
-function emptyDb() {
-  return { plan: null, grocery: { note: "", items: [] }, logs: { days: {} }, chats: { messages: [] } };
+function clone(x) {
+  return JSON.parse(JSON.stringify(x));
+}
+
+function r1(n) {
+  return Math.round((Number(n) || 0) * 10) / 10;
 }
 
 let memoryDb = null;
-
-function readDb() {
-  try {
-    const raw = localStorage.getItem(DB_KEY);
-    if (!raw) return memoryDb || emptyDb();
-    const db = JSON.parse(raw);
-    db.plan = db.plan || null;
-    db.grocery = db.grocery || { note: "", items: [] };
-    db.logs = db.logs || { days: {} };
-    db.chats = db.chats || { messages: [] };
-    memoryDb = db;
-    return db;
-  } catch {
-    return memoryDb || emptyDb();
-  }
-}
 
 function writeDb(db) {
   memoryDb = db;
@@ -39,6 +40,86 @@ function writeDb(db) {
   } catch {
     /* private mode / quota — keep memory copy */
   }
+}
+
+function validTargets(t) {
+  return t && ["calories", "protein", "carbs", "fat"].every((k) => Number(t[k]) > 0);
+}
+
+function pickTargets(t, fallback) {
+  if (!validTargets(t)) return { ...fallback };
+  return {
+    calories: Math.round(t.calories),
+    protein: Math.round(t.protein),
+    carbs: Math.round(t.carbs),
+    fat: Math.round(t.fat),
+  };
+}
+
+function mergeGrocery(old, seed) {
+  const prev = new Map((old?.items || []).map((i) => [i.id, i]));
+  const seedIds = new Set(seed.items.map((i) => i.id));
+  const items = seed.items.map((s) => {
+    const p = prev.get(s.id);
+    if (!p) return { ...s };
+    return { ...s, have: Boolean(p.have), amount: p.amount || s.amount, ...(s.beefFat ? { beefFat: p.beefFat || s.beefFat } : {}) };
+  });
+  // Items Chris added himself have generated ids, not seed slugs — keep them.
+  for (const i of old?.items || []) {
+    if (!seedIds.has(i.id) && /^(id-|[0-9a-f]{8}-)/i.test(String(i.id))) items.push(i);
+  }
+  return { note: seed.note, items };
+}
+
+function migrate(db) {
+  const seed = window.DIET_SEED;
+  db.logs = db.logs?.days ? db.logs : { days: {} };
+  db.chats = Array.isArray(db.chats?.messages) ? db.chats : { messages: [] };
+  if ((db.version || 0) < DB_VERSION) {
+    const oldDays = db.plan?.days || {};
+    db.settings = {
+      targets: {
+        train: pickTargets(oldDays.train, seed.targets.train),
+        rest: pickTargets(oldDays.rest, seed.targets.rest),
+      },
+      hit: { ...seed.hit },
+      stepGoal: seed.stepGoal,
+    };
+    db.meals = clone(seed.meals);
+    db.grocery = mergeGrocery(db.grocery, seed.grocery);
+    if (db.plan) db.legacy = { plan: db.plan };
+    delete db.plan;
+    db.version = DB_VERSION;
+  }
+  db.settings = db.settings || {};
+  db.settings.targets = {
+    train: pickTargets(db.settings.targets?.train, seed.targets.train),
+    rest: pickTargets(db.settings.targets?.rest, seed.targets.rest),
+  };
+  db.settings.hit = { ...seed.hit, ...(db.settings.hit || {}) };
+  db.settings.stepGoal = Number(db.settings.stepGoal) > 0 ? Number(db.settings.stepGoal) : seed.stepGoal;
+  db.meals = Array.isArray(db.meals) ? db.meals : clone(seed.meals);
+  db.customFoods = Array.isArray(db.customFoods) ? db.customFoods : [];
+  db.lastUsed = { meals: {}, foods: {}, ...(db.lastUsed || {}) };
+  db.weights = Array.isArray(db.weights) ? db.weights : [];
+  db.checkins = Array.isArray(db.checkins) ? db.checkins : [];
+  db.grocery = Array.isArray(db.grocery?.items) ? db.grocery : clone(seed.grocery);
+  db.dayPrefs = db.dayPrefs || {};
+  return db;
+}
+
+function readDb() {
+  if (memoryDb) return memoryDb;
+  let raw = null;
+  try {
+    raw = JSON.parse(localStorage.getItem(DB_KEY) || "null");
+  } catch {
+    raw = null;
+  }
+  const db = migrate(raw && typeof raw === "object" ? raw : {});
+  window.DietFoods.setCustomFoods(db.customFoods);
+  writeDb(db);
+  return db;
 }
 
 function sumMacros(rows) {
@@ -54,601 +135,518 @@ function sumMacros(rows) {
   );
 }
 
-function retotalDay(day) {
-  const t = sumMacros(day.meals || []);
-  day.calories = Math.round(t.calories);
-  day.protein = Math.round(t.protein);
-  day.carbs = Math.round(t.carbs);
-  day.fat = Math.round(t.fat);
+// ---- Days ----
+
+function ensureDay(db, date) {
+  let day = db.logs.days[date];
+  if (!day) day = db.logs.days[date] = { type: "train", eaten: [] };
+  if (day.type !== "rest") day.type = "train";
+  if (!Array.isArray(day.eaten)) day.eaten = [];
   return day;
 }
 
-function ensureDay(db, date) {
-  if (!db.logs.days[date]) db.logs.days[date] = { type: null, eaten: [] };
-  return db.logs.days[date];
+function macroStatus(key, eaten, target, hit) {
+  const diff = eaten - target;
+  if (key === "protein") return { state: diff >= -0.5 ? "hit" : "under", diff };
+  const tol = key === "calories" ? Number(hit.kcalWindow) || 0 : (target * (Number(hit.carbFatPct) || 0)) / 100;
+  if (Math.abs(diff) <= tol) return { state: "hit", diff };
+  return { state: diff > 0 ? "over" : "under", diff };
 }
 
-function stepGoal(plan) {
-  const raw = String(plan?.profile?.steps || "10000");
-  const k = raw.match(/(\d+(?:\.\d+)?)\s*k/i);
-  if (k) return Math.round(Number(k[1]) * 1000);
-  const n = parseInt(raw.replace(/[^\d]/g, ""), 10);
-  return n >= 1000 ? n : 10000;
+function mealCount(eaten) {
+  return eaten.filter((e) => e.kind === "meal" || e.kind === "planned").length;
 }
 
-function snapshot(db, date) {
-  const day = db.logs.days[date] || { type: null, eaten: [] };
-  const template = day.type && db.plan ? db.plan.days[day.type] : null;
-  const eaten = day.eaten || [];
-  const totals = sumMacros(eaten);
-  const targets = template
-    ? { calories: template.calories, protein: template.protein, carbs: template.carbs, fat: template.fat }
-    : null;
-  const remaining = targets
-    ? {
-        calories: targets.calories - totals.calories,
-        protein: targets.protein - totals.protein,
-        carbs: targets.carbs - totals.carbs,
-        fat: targets.fat - totals.fat,
-      }
-    : null;
-  const displayMeals = template ? displayedMeals(template, eaten) : [];
-  const eatenIds = new Set(eaten.filter((x) => x.kind === "planned").map((x) => x.mealId));
-  const remainingMeals = displayMeals.filter((m) => !eatenIds.has(m.id));
-  const goal = stepGoal(db.plan);
-  const steps = day.steps == null ? null : Number(day.steps);
+function daySummary(db, date) {
+  const day = ensureDay(db, date);
+  const targets = db.settings.targets[day.type];
+  const totals = sumMacros(day.eaten);
+  const remaining = {};
+  const status = {};
+  for (const k of ["calories", "protein", "carbs", "fat"]) {
+    remaining[k] = targets[k] - totals[k];
+    status[k] = macroStatus(k, totals[k], targets[k], db.settings.hit);
+  }
+  const pref = db.dayPrefs[date]?.mealsLeft;
+  const meals = mealCount(day.eaten);
+  const mealsLeftSet = pref === 1 || pref === 2;
+  const mealsLeft = mealsLeftSet ? pref : Math.min(2, Math.max(1, 4 - meals));
   return {
     date,
     type: day.type,
-    eaten,
+    eaten: day.eaten,
     totals,
     targets,
     remaining,
-    remainingMeals,
-    displayMeals,
-    template,
-    steps: Number.isFinite(steps) ? steps : null,
-    stepGoal: goal,
+    status,
+    mealCount: meals,
+    mealsLeft,
+    mealsLeftSet,
+    steps: day.steps == null ? null : Number(day.steps),
     stepsSource: day.stepsSource || null,
-    stepsAt: day.stepsAt || null,
+    stepGoal: db.settings.stepGoal,
   };
 }
 
-function onServer() {
-  const h = location.hostname;
-  return h === "localhost" || h === "127.0.0.1" || /^\d+\.\d+\.\d+\.\d+$/.test(h);
+function setDayType(db, date, type) {
+  ensureDay(db, date).type = type === "rest" ? "rest" : "train";
+  writeDb(db);
 }
 
-function seedIfNeeded() {
-  const db = readDb();
-  const seed = window.DIET_SEED || {};
-  const seedVer = seed.plan?.version;
-  if (!db.plan || (seedVer && db.plan.version !== seedVer)) {
-    db.plan = seed.plan || db.plan;
+function setMealsLeft(db, date, n) {
+  db.dayPrefs[date] = { ...(db.dayPrefs[date] || {}), mealsLeft: n === 1 ? 1 : 2 };
+  writeDb(db);
+}
+
+function setSteps(db, date, steps, source) {
+  const n = Math.round(Number(steps));
+  if (!Number.isFinite(n) || n < 0) throw new Error("Enter a step count.");
+  const day = ensureDay(db, date);
+  day.steps = n;
+  day.stepsSource = source === "health" ? "health" : "manual";
+  day.stepsAt = new Date().toISOString();
+  writeDb(db);
+}
+
+// ---- Log entries ----
+
+function buildEntry({ kind, mealId, name, items }) {
+  const F = window.DietFoods;
+  const rows = (items || [])
+    .filter((i) => Number(i.amount) > 0 && F.getFood(i.food))
+    .map((i) => {
+      const food = F.getFood(i.food);
+      const m = F.itemMacros(i);
+      return {
+        food: i.food,
+        name: food.name,
+        amount: Number(i.amount),
+        unit: i.unit,
+        doneness: F.hasDoneness(food) ? (i.doneness === "raw" ? "raw" : "cooked") : null,
+        calories: r1(m.calories),
+        protein: r1(m.protein),
+        carbs: r1(m.carbs),
+        fat: r1(m.fat),
+      };
+    });
+  if (!rows.length) throw new Error("Enter an amount for at least one food.");
+  const t = sumMacros(rows);
+  return {
+    kind: kind === "meal" ? "meal" : "food",
+    mealId: mealId || null,
+    name: name || rows.map((r) => r.name).join(" + "),
+    items: rows,
+    calories: Math.round(t.calories),
+    protein: r1(t.protein),
+    carbs: r1(t.carbs),
+    fat: r1(t.fat),
+  };
+}
+
+function remember(db, entry) {
+  const slim = entry.items.map(({ food, amount, unit, doneness }) => ({ food, amount, unit, doneness }));
+  if (entry.mealId) db.lastUsed.meals[entry.mealId] = slim;
+  for (const i of slim) db.lastUsed.foods[i.food] = { amount: i.amount, unit: i.unit, doneness: i.doneness };
+}
+
+function addEntry(db, date, fields) {
+  const entry = { id: uid(), at: new Date().toISOString(), ...buildEntry(fields) };
+  ensureDay(db, date).eaten.push(entry);
+  remember(db, entry);
+  writeDb(db);
+  return entry;
+}
+
+function updateEntry(db, date, id, fields) {
+  const day = ensureDay(db, date);
+  const idx = day.eaten.findIndex((e) => e.id === id);
+  if (idx < 0) throw new Error("That entry is gone.");
+  const entry = { id, at: day.eaten[idx].at, ...buildEntry(fields) };
+  day.eaten[idx] = entry;
+  remember(db, entry);
+  writeDb(db);
+  return entry;
+}
+
+function removeEntry(db, date, id) {
+  const day = ensureDay(db, date);
+  day.eaten = day.eaten.filter((e) => e.id !== id);
+  writeDb(db);
+}
+
+function findEntry(db, date, id) {
+  return ensureDay(db, date).eaten.find((e) => e.id === id) || null;
+}
+
+function foodKind(id) {
+  const food = window.DietFoods.getFood(id);
+  return food?.group || id;
+}
+
+// What to prefill when Chris taps a meal: last time's amounts, plus any of the meal's
+// foods he skipped last time (or that are optional) at 0 so they're one tap away.
+function mealItems(db, mealId) {
+  const F = window.DietFoods;
+  const meal = db.meals.find((m) => m.id === mealId);
+  const template = meal?.items || [];
+  const last = db.lastUsed.meals[mealId];
+  const items = last ? [...last] : [...template];
+  if (last) {
+    const have = new Set(last.map((i) => foodKind(i.food)));
+    for (const t of template) if (!have.has(foodKind(t.food))) items.push({ ...t, amount: 0 });
   }
-  if (!db.grocery || !db.grocery.items || !db.grocery.items.length) {
-    db.grocery = seed.grocery || { note: "", items: [] };
-  } else if (seed.grocery && seedVer && db.grocery.seedVersion !== seedVer) {
-    const prevById = new Map((db.grocery.items || []).map((i) => [i.id, i]));
-    db.grocery = {
-      note: seed.grocery.note || db.grocery.note,
-      seedVersion: seedVer,
-      items: (seed.grocery.items || []).map((s) => {
-        const prev = prevById.get(s.id);
-        if (!prev) return { ...s };
-        return {
-          ...s,
-          have: prev.have,
-          amount: prev.amount || s.amount,
-          beefFat: prev.beefFat || s.beefFat,
-        };
-      }),
-    };
+  return clone(items.filter((i) => F.getFood(i.food)));
+}
+
+// Which beef blend / steak cut / salmon he usually has, from his most recent meals.
+function preferredVariant(db, group) {
+  const F = window.DietFoods;
+  for (const items of Object.values(db.lastUsed.meals)) {
+    const hit = items.find((i) => F.getFood(i.food)?.group === group);
+    if (hit) return hit.food;
   }
-  if (!db.plan) throw new Error("Plan failed to load. Refresh the page.");
+  for (const m of db.meals) {
+    const hit = m.items.find((i) => F.getFood(i.food)?.group === group);
+    if (hit) return hit.food;
+  }
+  return F.FOODS.find((f) => f.group === group)?.id || null;
+}
+
+function foodItem(db, foodId, fallback = {}) {
+  const F = window.DietFoods;
+  const last = db.lastUsed.foods[foodId];
+  const units = F.unitsFor(F.getFood(foodId));
+  if (last && units.includes(last.unit)) return F.newItem(foodId, last);
+  return F.newItem(foodId, fallback);
+}
+
+function recentDays(db, today, n) {
+  const out = [];
+  for (let i = 1; i <= n; i++) {
+    const date = addDays(today, -i);
+    const day = db.logs.days[date];
+    if (!day?.eaten?.length) continue;
+    const t = sumMacros(day.eaten);
+    out.push({ date, type: day.type || "train", totals: t, targets: db.settings.targets[day.type === "rest" ? "rest" : "train"] });
+  }
+  return out;
+}
+
+// ---- Targets, meals, custom foods ----
+
+function saveSettings(db, { targets, hit }) {
+  for (const type of ["train", "rest"]) {
+    const t = targets[type];
+    if (!validTargets(t)) throw new Error(`Fill in all four ${type}-day numbers.`);
+    db.settings.targets[type] = pickTargets(t, db.settings.targets[type]);
+  }
+  const kcalWindow = Number(hit.kcalWindow);
+  const carbFatPct = Number(hit.carbFatPct);
+  if (!(kcalWindow >= 0) || !(carbFatPct >= 0)) throw new Error("Hit ranges must be 0 or more.");
+  db.settings.hit = { kcalWindow: Math.round(kcalWindow), carbFatPct: Math.round(carbFatPct) };
+  writeDb(db);
+}
+
+function saveMeal(db, meal) {
+  const name = String(meal.name || "").trim();
+  if (!name) throw new Error("Give the meal a name.");
+  // An amount of 0 keeps a food on the meal as optional (e.g. "sometimes banana").
+  const items = (meal.items || [])
+    .filter((i) => window.DietFoods.getFood(i.food))
+    .map(({ food, amount, unit, doneness }) => ({ food, amount: Math.max(0, Number(amount) || 0), unit, doneness: doneness || null }));
+  if (!items.some((i) => i.amount > 0)) throw new Error("Add at least one food with an amount.");
+  const id = meal.id || `meal-${uid().slice(0, 8)}`;
+  const idx = db.meals.findIndex((m) => m.id === id);
+  const saved = { id, name, items };
+  if (idx >= 0) db.meals[idx] = saved;
+  else db.meals.push(saved);
+  delete db.lastUsed.meals[id];
+  writeDb(db);
+  return saved;
+}
+
+function removeMeal(db, id) {
+  db.meals = db.meals.filter((m) => m.id !== id);
+  delete db.lastUsed.meals[id];
+  writeDb(db);
+}
+
+function saveCustomFood(db, food) {
+  const name = String(food.name || "").trim();
+  if (!name) throw new Error("Give the food a name.");
+  if (!food.per || food.per.some((v) => !Number.isFinite(v) || v < 0)) throw new Error("Fill in calories, protein, carbs and fat.");
+  const id = food.id || `custom-${uid().slice(0, 8)}`;
+  const saved = {
+    id,
+    name,
+    per: food.per.map(r1),
+    unit: "srv",
+    baseUnit: food.baseUnit === "ml" ? "ml" : "g",
+    gPerMl: 1,
+    servingG: Number(food.servingG) > 0 ? Number(food.servingG) : 100,
+    code: food.code ? window.DietFoods.normalizeBarcode(food.code) : null,
+  };
+  const idx = db.customFoods.findIndex((f) => f.id === id);
+  if (idx >= 0) db.customFoods[idx] = saved;
+  else db.customFoods.push(saved);
+  window.DietFoods.setCustomFoods(db.customFoods);
+  writeDb(db);
+  return saved;
+}
+
+function removeCustomFood(db, id) {
+  db.customFoods = db.customFoods.filter((f) => f.id !== id);
+  delete db.lastUsed.foods[id];
+  window.DietFoods.setCustomFoods(db.customFoods);
+  writeDb(db);
+}
+
+function customByCode(db, code) {
+  const want = window.DietFoods.normalizeBarcode(code);
+  return db.customFoods.find((f) => f.code && window.DietFoods.normalizeBarcode(f.code) === want) || null;
+}
+
+// ---- Weight ----
+
+function setWeight(db, date, lb) {
+  const n = Number(lb);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) throw new Error("Pick a date.");
+  if (!(n > 50 && n < 500)) throw new Error("Enter your weight in lb.");
+  db.weights = db.weights.filter((w) => w.date !== date);
+  db.weights.push({ date, lb: r1(n) });
+  db.weights.sort((a, b) => a.date.localeCompare(b.date));
+  writeDb(db);
+}
+
+function removeWeight(db, date) {
+  db.weights = db.weights.filter((w) => w.date !== date);
+  writeDb(db);
+}
+
+function mean(list) {
+  return list.length ? list.reduce((a, w) => a + w.lb, 0) / list.length : null;
+}
+
+// 7-day average for each weigh-in: the mean of every weigh-in in that day and the 6 before it.
+function weightTrend(db) {
+  return db.weights.map((w) => {
+    const from = addDays(w.date, -6);
+    return { ...w, avg: mean(db.weights.filter((x) => x.date >= from && x.date <= w.date)) };
+  });
+}
+
+function weightStats(db, today) {
+  const last7 = db.weights.filter((w) => w.date > addDays(today, -7) && w.date <= today);
+  const prev7 = db.weights.filter((w) => w.date > addDays(today, -14) && w.date <= addDays(today, -7));
+  const avg7 = mean(last7);
+  const prevAvg = mean(prev7);
+  return {
+    latest: db.weights[db.weights.length - 1] || null,
+    avg7,
+    count7: last7.length,
+    rate: avg7 != null && prevAvg != null ? avg7 - prevAvg : null,
+  };
+}
+
+// ---- History & weekly check-in ----
+
+// Weekly gain goal from Chris's lean-bulk plan (lb per week).
+const WEEKLY_GOAL = [0.25, 0.5];
+
+function daysBetween(a, b) {
+  return Math.round((parseDate(b) - parseDate(a)) / 86400000);
+}
+
+function loggedDays(db, from, to) {
+  const out = [];
+  for (let d = from; d <= to; d = addDays(d, 1)) {
+    if (db.logs.days[d]?.eaten?.length) out.push(daySummary(db, d));
+  }
+  return out;
+}
+
+function pastDays(db, today, n) {
+  return loggedDays(db, addDays(today, -n), addDays(today, -1)).reverse();
+}
+
+// 7-day blocks ending yesterday (today is still in progress).
+function weekSummaries(db, today, n) {
+  const weeks = [];
+  for (let k = 0; k < n; k++) {
+    const end = addDays(today, -1 - 7 * k);
+    const start = addDays(end, -6);
+    const days = loggedDays(db, start, end);
+    const avg = (fn) => (days.length ? days.reduce((a, s) => a + fn(s), 0) / days.length : null);
+    weeks.push({
+      start,
+      end,
+      logged: days.length,
+      calories: avg((s) => s.totals.calories),
+      target: avg((s) => s.targets.calories),
+      protein: avg((s) => s.totals.protein),
+      carbs: avg((s) => s.totals.carbs),
+      fat: avg((s) => s.totals.fat),
+      proteinHits: days.filter((s) => s.status.protein.state === "hit").length,
+      calorieHits: days.filter((s) => s.status.calories.state === "hit").length,
+      weight: mean(db.weights.filter((w) => w.date >= start && w.date <= end)),
+    });
+  }
+  return weeks;
+}
+
+// Compares this week's average weight with last week's. Rule of thumb: ~3,500 kcal per lb,
+// so each 0.1 lb/week off the middle of the goal is ~50 kcal a day. Changes are 100–250 kcal,
+// at most every 2 weeks, and only once he's actually been eating his targets.
+function checkIn(db, today) {
+  const w = weightStats(db, today);
+  const prevCount = db.weights.filter((x) => x.date > addDays(today, -14) && x.date <= addDays(today, -7)).length;
+  const last = db.checkins[db.checkins.length - 1] || null;
+  const since = last ? daysBetween(last.date, today) : null;
+  const base = { rate: w.rate, last, since };
+  if (w.count7 < 3 || prevCount < 3) return { ...base, state: "need-weights", count7: w.count7, prevCount };
+  if (since != null && since < 14) return { ...base, state: "wait", nextDate: addDays(last.date, 14) };
+  const days = loggedDays(db, addDays(today, -14), addDays(today, -1));
+  if (days.length < 7) return { ...base, state: "need-logs", logged: days.length };
+  const ate = days.reduce((a, s) => a + s.totals.calories, 0) / days.length;
+  const target = days.reduce((a, s) => a + s.targets.calories, 0) / days.length;
+  const mid = (WEEKLY_GOAL[0] + WEEKLY_GOAL[1]) / 2;
+  const step = (lbPerWeek) => Math.min(250, Math.max(100, Math.round((lbPerWeek * 500) / 25) * 25));
+  const common = { ...base, ate, target };
+  if (w.rate < WEEKLY_GOAL[0]) {
+    if (target - ate > 150) return { ...common, state: "eat-more" };
+    return { ...common, state: "raise", delta: step(mid - w.rate) };
+  }
+  if (w.rate > WEEKLY_GOAL[1]) {
+    if (ate - target > 150) return { ...common, state: "eat-less" };
+    return { ...common, state: "lower", delta: -step(w.rate - mid) };
+  }
+  return { ...common, state: "on-pace" };
+}
+
+// Calorie changes go on carbs; protein and fat stay put.
+function applyCheckin(db, today, delta, rate) {
+  for (const type of ["train", "rest"]) {
+    const t = db.settings.targets[type];
+    t.calories = Math.round(t.calories + delta);
+    t.carbs = Math.max(0, Math.round(t.carbs + delta / 4));
+  }
+  db.checkins.push({ date: today, delta, rate: rate == null ? null : Math.round(rate * 100) / 100 });
+  writeDb(db);
+}
+
+// ---- Backup ----
+// A backup is just the whole database as a JSON file Chris saves to Files / iCloud Drive.
+
+function exportDb(db) {
+  return JSON.stringify({ ...db, exportedAt: new Date().toISOString() });
+}
+
+function backupSummary(obj) {
+  return {
+    days: Object.values(obj?.logs?.days || {}).filter((d) => d?.eaten?.length).length,
+    weights: Array.isArray(obj?.weights) ? obj.weights.length : 0,
+    exportedAt: obj?.exportedAt || null,
+  };
+}
+
+function restoreDb(obj) {
+  if (!obj || typeof obj !== "object" || !obj.logs?.days) throw new Error("That file isn’t a Diet Hub backup.");
+  // Keep what was on the phone, just in case the wrong file got picked.
+  try {
+    localStorage.setItem(`${DB_KEY}-before-restore`, JSON.stringify(memoryDb || {}));
+  } catch {
+    /* quota — the restore still goes ahead */
+  }
+  const db = migrate(clone(obj));
+  delete db.exportedAt;
+  window.DietFoods.setCustomFoods(db.customFoods);
   writeDb(db);
   return db;
 }
 
-function qtyToNumber(raw) {
-  const s = String(raw).trim();
-  if (s === "½" || s === "1/2") return 0.5;
-  if (s === "¼" || s === "1/4") return 0.25;
-  if (s === "¾" || s === "3/4") return 0.75;
-  if (s.includes("/")) {
-    const parts = s.split("/");
-    const a = Number(parts[0]);
-    const b = Number(parts[1]);
-    if (a && b) return a / b;
-  }
-  return Number(s);
-}
-
-function formatQty(n, kind) {
-  if (kind === "count") return String(Math.max(1, Math.round(n)));
-  if (kind === "tbsp") {
-    const r = Math.max(0.25, Math.round(n * 2) / 2);
-    if (r === 0.5) return "½";
-    if (r === 0.25) return "¼";
-    if (r === 0.75) return "¾";
-    return String(r).replace(/\.0$/, "");
-  }
-  const step = n >= 100 ? 10 : 5;
-  return String(Math.max(step, Math.round(n / step) * step));
-}
-
-function scaleFoodText(food, ratios) {
-  const specs = [
-    { re: /(\d+(?:\.\d+)?)\s*(g|grams?)\s+((?:cooked\s+)?(?:white\/jasmine\s+|jasmine\s+|white\s+)?rice)/gi, r: ratios.cR, kind: "g" },
-    { re: /(\d+(?:\.\d+)?)\s*(g|grams?)\s+((?:cooked\s+)?potato)/gi, r: ratios.cR, kind: "g" },
-    { re: /(\d+(?:\.\d+)?)\s*(g|grams?)\s+((?:cooked\s+)?(?:chicken(?:\s+breast)?|breast))/gi, r: ratios.pR, kind: "g" },
-    { re: /(\d+(?:\.\d+)?)\s*(g|grams?)\s+((?:cooked\s+)?(?:ground\s+)?beef)/gi, r: ratios.pR, kind: "g" },
-    { re: /(\d+(?:\.\d+)?)\s*(ml)\s+((?:raw\s+)?milk)/gi, r: ratios.pR, kind: "g" },
-    { re: /(\d+(?:\.\d+)?|½|¼|¾)\s*(tbsp|tablespoons?)\s+(guac)/gi, r: ratios.fR, kind: "tbsp" },
-    { re: /(\d+(?:\.\d+)?|½|¼|¾)\s*(tbsp|tablespoons?)\s+((?:olive\s+)?oil)/gi, r: ratios.fR, kind: "tbsp" },
-    { re: /(\d+)\s+(eggs?)\b/gi, r: ratios.pR, kind: "count" },
-    { re: /(\d+(?:\.\d+)?)\s+(cups?)\s+((?:frozen\s+)?berries)/gi, r: ratios.cR, kind: "tbsp" },
-    { re: /(\d+)\s+(oranges?)\b/gi, r: ratios.cR, kind: "count" },
-    { re: /(\d+)\s+(bananas?)\b/gi, r: ratios.cR, kind: "count" },
-  ];
-  let out = food;
-  for (const spec of specs) {
-    out = out.replace(spec.re, (full, n, unit, maybeRest) => {
-      const next = formatQty(qtyToNumber(n) * spec.r, spec.kind);
-      const rest = typeof maybeRest === "string" ? maybeRest : "";
-      return rest ? `${next} ${unit} ${rest}` : `${next} ${unit}`;
-    });
-  }
-  return out.replace(/\s+/g, " ").trim();
-}
-
-function applyDeltaToMeal(meal, delta) {
-  const nextP = Math.max(0, Math.round((Number(meal.protein) || 0) + (Number(delta.protein) || 0)));
-  const nextC = Math.max(0, Math.round((Number(meal.carbs) || 0) + (Number(delta.carbs) || 0)));
-  const nextF = Math.max(0, Math.round((Number(meal.fat) || 0) + (Number(delta.fat) || 0)));
-  const pR = meal.protein ? nextP / meal.protein : 1;
-  const cR = meal.carbs ? nextC / meal.carbs : 1;
-  const fR = meal.fat ? nextF / meal.fat : 1;
-  const shifted = Math.round((nextP * 4 + nextC * 4 + nextF * 9) - (Number(meal.calories) || 0));
-  return {
-    ...meal,
-    protein: nextP,
-    carbs: nextC,
-    fat: nextF,
-    calories: Math.max(0, Math.round(nextP * 4 + nextC * 4 + nextF * 9)),
-    food: scaleFoodText(meal.food, { pR, cR, fR }),
-    adjusted: shifted !== 0,
-    adjustNote: shifted
-      ? `${shifted > 0 ? "+" : ""}${shifted} kcal moved here from food you already logged`
-      : "",
-  };
-}
-
-function displayedMeals(template, eaten) {
-  if (!template?.meals) return [];
-  const meals = template.meals.map((m) => ({ ...m }));
-  const eatenIds = new Set((eaten || []).filter((x) => x.kind === "planned" && x.mealId).map((x) => x.mealId));
-  const remaining = meals.filter((m) => !eatenIds.has(m.id));
-  if (!remaining.length) return meals;
-  const totals = sumMacros(eaten || []);
-  const budget = {
-    protein: (Number(template.protein) || 0) - totals.protein,
-    carbs: (Number(template.carbs) || 0) - totals.carbs,
-    fat: (Number(template.fat) || 0) - totals.fat,
-  };
-  const have = sumMacros(remaining);
-  const leftover = {
-    protein: budget.protein - have.protein,
-    carbs: budget.carbs - have.carbs,
-    fat: budget.fat - have.fat,
-  };
-  if (Math.abs(leftover.protein) < 2 && Math.abs(leftover.carbs) < 3 && Math.abs(leftover.fat) < 2) {
-    return meals;
-  }
-  let rest = { ...leftover };
-  for (const m of remaining) {
-    const apply = {
-      protein: rest.protein < 0 ? Math.max(rest.protein, -Number(m.protein) || 0) : rest.protein,
-      carbs: rest.carbs < 0 ? Math.max(rest.carbs, -Number(m.carbs) || 0) : rest.carbs,
-      fat: rest.fat < 0 ? Math.max(rest.fat, -Number(m.fat) || 0) : rest.fat,
-    };
-    const idx = meals.findIndex((x) => x.id === m.id);
-    meals[idx] = applyDeltaToMeal(m, apply);
-    rest.protein -= apply.protein;
-    rest.carbs -= apply.carbs;
-    rest.fat -= apply.fat;
-    if (Math.abs(rest.protein) < 2 && Math.abs(rest.carbs) < 3 && Math.abs(rest.fat) < 2) break;
-  }
-  return meals;
-}
-
-function grabMacro(q, names) {
-  const alt = names.join("|");
-  const patterns = [
-    new RegExp("(\\d{2,3})\\s*(?:g|grams?)?\\s*(?:of\\s+)?(?:" + alt + ")\\b", "i"),
-    new RegExp("\\b(?:" + alt + ")\\b\\s*(?:intake|target|macros?)?\\s*(?:to|at|around|of|=|:)?\\s*(\\d{2,3})\\s*(?:g|grams?)?\\b", "i"),
-  ];
-  for (const re of patterns) {
-    const m = q.match(re);
-    if (m) {
-      const n = Number(m[1]);
-      if (n >= 20 && n <= 900) return n;
-    }
-  }
-  return null;
-}
-
-function parseMacroIntent(text, history) {
-  const textQ = String(text || "").toLowerCase().replace(/protien/g, "protein");
-  const lookLikeOnly = /what (would|does) that look like|how would (the )?meals|show (me )?the (new )?meals/.test(textQ)
-    && !/\d{2,3}/.test(textQ);
-  if (lookLikeOnly) return null;
-
-  const prior = (history || [])
-    .filter((m) => m.role === "user")
-    .slice(-2)
-    .map((m) => m.content)
-    .join(" ");
-  const namedInText = grabMacro(textQ, ["protein"]) || grabMacro(textQ, ["carbs", "carb", "carbohydrates"]) || grabMacro(textQ, ["fats", "fat"]);
-  const combined = namedInText ? text : `${prior} ${text}`.trim();
-  const q = combined.toLowerCase().replace(/protien/g, "protein");
-  let protein = grabMacro(q, ["protein"]);
-  let carbs = grabMacro(q, ["carbs", "carb", "carbohydrates"]);
-  let fat = grabMacro(q, ["fats", "fat"]);
-  if (protein == null && carbs == null && fat == null && /protein/.test(q) && /carb/.test(q) && /fat/.test(q)) {
-    const triple = q.match(/(\d{2,3})\D{0,20}(\d{2,3})\D{0,20}(\d{2,3})/);
-    if (triple) {
-      protein = Number(triple[1]);
-      carbs = Number(triple[2]);
-      fat = Number(triple[3]);
-    }
-  }
-  const calMatch = q.match(/(\d{4})\s*(?:kcal|calories|cals)\b/) || q.match(/\b(?:calories|kcal)\s*(?:to|at|around)?\s*(\d{4})\b/);
-  const calories = calMatch ? Number(calMatch[1]) : null;
-
-  let days = ["train", "rest"];
-  if (/\brest\b/.test(q) && !/\btrain\b|\blift|\bgym|\bevery day|\bboth\b|\bdaily\b/.test(q)) days = ["rest"];
-  else if (/\b(train|lift|gym)\b/.test(q) && !/\brest\b|\bevery day|\bboth\b|\bdaily\b/.test(q)) days = ["train"];
-
-  const relative = {};
-  if (protein == null && /more protein|increase protein|higher protein|protein up/.test(q)) relative.protein = 25;
-  if (protein == null && /less protein|lower protein|drop protein|cut protein/.test(q)) relative.protein = -20;
-  if (carbs == null && /more carb|increase carb|higher carb|carbs up/.test(q)) relative.carbs = 40;
-  if (carbs == null && /less carb|lower carb|drop carb|cut carb/.test(q)) relative.carbs = -40;
-  if (fat == null && /more fat|increase fat|higher fat|fats up/.test(q)) relative.fat = 15;
-  if (fat == null && /less fat|lower fat|drop fat|cut fat/.test(q)) relative.fat = -15;
-
-  const hasAbs = protein != null || carbs != null || fat != null || calories != null;
-  const hasRel = relative.protein || relative.carbs || relative.fat;
-  const changeTalk = /(chang|set |make |want|target|hit |bump|increas|decreas|rais|lower|drop |cut |adjust|update|rewrite|new macro|macros to|look like|for my meals)/.test(q);
-  const questionOnly = /^(what|how much|show|tell me|what's|whats)\b/.test(textQ) && !changeTalk && !hasAbs;
-
-  if (questionOnly || (!hasAbs && !hasRel)) return null;
-  if (!changeTalk && !hasAbs) return null;
-
-  return { protein, carbs, fat, calories, relative, days };
-}
-
-function describeDay(day) {
-  return day.meals
-    .map((m) => `- ${m.name}: ${m.food} (${m.calories} kcal · P${m.protein} C${m.carbs} F${m.fat})`)
-    .join("\n");
-}
-
-function retargetDay(day, wanted) {
-  const curP = day.protein || 1;
-  const curC = day.carbs || 1;
-  const curF = day.fat || 1;
-  const pR = wanted.protein != null ? wanted.protein / curP : 1;
-  const cR = wanted.carbs != null ? wanted.carbs / curC : 1;
-  const fR = wanted.fat != null ? wanted.fat / curF : 1;
-  day.meals = (day.meals || []).map((m) => {
-    const protein = Math.max(0, Math.round(Number(m.protein) * pR));
-    const carbs = Math.max(0, Math.round(Number(m.carbs) * cR));
-    const fat = Math.max(0, Math.round(Number(m.fat) * fR));
-    return {
-      ...m,
-      food: scaleFoodText(m.food, { pR, cR, fR }),
-      protein,
-      carbs,
-      fat,
-      calories: Math.round(protein * 4 + carbs * 4 + fat * 9),
-    };
-  });
-  retotalDay(day);
-  if (day.meals.length) {
-    const last = day.meals[day.meals.length - 1];
-    if (wanted.protein != null) last.protein = Math.max(0, last.protein + (wanted.protein - day.protein));
-    if (wanted.carbs != null) last.carbs = Math.max(0, last.carbs + (wanted.carbs - day.carbs));
-    if (wanted.fat != null) last.fat = Math.max(0, last.fat + (wanted.fat - day.fat));
-    last.calories = Math.round(last.protein * 4 + last.carbs * 4 + last.fat * 9);
-    retotalDay(day);
-  }
-  if (wanted.calories != null && wanted.protein == null && wanted.carbs == null && wanted.fat == null && day.calories) {
-    const cR2 = wanted.calories / day.calories;
-    return retargetDay(day, {
-      protein: Math.round(day.protein * cR2),
-      carbs: Math.round(day.carbs * cR2),
-      fat: Math.round(day.fat * cR2),
-    });
-  }
-  return day;
-}
-
-function applyMacroChange(db, message) {
-  const intent = parseMacroIntent(message, db.chats?.messages || []);
-  if (!intent || !db.plan) return null;
-
-  const notes = [];
-  for (const key of intent.days) {
-    const day = db.plan.days[key];
-    if (!day) continue;
-    const wanted = {
-      protein: intent.protein != null ? intent.protein : intent.relative.protein ? Math.max(80, day.protein + intent.relative.protein) : null,
-      carbs: intent.carbs != null ? intent.carbs : intent.relative.carbs ? Math.max(80, day.carbs + intent.relative.carbs) : null,
-      fat: intent.fat != null ? intent.fat : intent.relative.fat ? Math.max(30, day.fat + intent.relative.fat) : null,
-      calories: intent.days.length === 1 ? intent.calories : key === "train" ? intent.calories : null,
-    };
-    if (intent.calories != null && key === "rest" && intent.days.includes("train") && intent.days.includes("rest")) {
-      wanted.calories = null;
-    }
-    const before = { p: day.protein, c: day.carbs, f: day.fat, kcal: day.calories };
-    retargetDay(day, wanted);
-    notes.push({
-      key,
-      label: day.label,
-      before,
-      after: { p: day.protein, c: day.carbs, f: day.fat, kcal: day.calories },
-      meals: describeDay(day),
-    });
-  }
-
-  db.plan.updatedAt = todayKey();
+function markBackup(db) {
+  db.lastBackup = new Date().toISOString();
   writeDb(db);
-
-  const lines = notes.map((n) => {
-    return `${n.label}: ${n.before.p}P / ${n.before.c}C / ${n.before.f}F (${n.before.kcal} kcal) → ${n.after.p}P / ${n.after.c}C / ${n.after.f}F (${n.after.kcal} kcal)\n${n.meals}`;
-  });
-  const reply = `Got it — I changed the plan to those daily macros and scaled the meals to match.\n\n${lines.join("\n\n")}\n\nOpen Plan if you want to tweak a meal. Tell me rest-day vs train-day if you want them different.`;
-  return { reply, applied: ["plan"] };
 }
 
-function localReply(db, date, message) {
-  const snap = snapshot(db, date);
-  const q = message.toLowerCase();
-  const g = db.grocery?.items || [];
-  const need = g.filter((i) => !i.have);
-  const have = g.filter((i) => i.have);
+// ---- Grocery ----
 
-  if (/grocery|buy|shop|get for|need to get|haul|list/.test(q)) {
-    const buy = need.map((i) => `- ${i.item} — ${i.amount}`).join("\n") || "- nothing left to buy";
-    const owned = have.map((i) => `- ${i.item} — ${i.amount}`).join("\n") || "- nothing marked have";
-    return `BUY:\n${buy}\n\nALREADY HAVE:\n${owned}`;
-  }
-
-  if (/step/.test(q)) {
-    const goal = snap.stepGoal || 10000;
-    if (snap.steps == null) {
-      return "No steps yet. On iPhone open Today → Get from Health (that’s the only way a website can see the Health app), or type the number from Health.";
-    }
-    const left = Math.max(0, goal - snap.steps);
-    return `Steps today: ${Math.round(snap.steps).toLocaleString()} / ${goal.toLocaleString()}${snap.stepsSource === "health" ? " (from Health)" : ""}. ${left ? left.toLocaleString() + " left to hit the goal." : "Goal hit."}`;
-  }
-
-  if (db.plan && /what (would|does) that look like|how would (the )?meals|show (me )?the (new )?meals|for my meals/.test(q)) {
-    const t = db.plan.days.train;
-    const r = db.plan.days.rest;
-    return `Train (~${t.calories} kcal · P${t.protein} C${t.carbs} F${t.fat})\n${describeDay(t)}\n\nRest (~${r.calories} kcal · P${r.protein} C${r.carbs} F${r.fat})\n${describeDay(r)}`;
-  }
-
-  if (snap.type && (/eat|left|remain|today|calories|hungry|what do i|next meal|should i eat/.test(q))) {
-    const left = Math.round(snap.remaining.calories);
-    const meals = (snap.remainingMeals || [])
-      .map((m) => `- ${m.name}: ${m.food} (${m.calories} kcal · P${m.protein} C${m.carbs} F${m.fat})${m.adjusted ? " — amounts shifted from what you already ate" : ""}`)
-      .join("\n") || "- all planned meals logged";
-    const stepLine = snap.steps == null ? "" : `\nSteps: ${Math.round(snap.steps).toLocaleString()} / ${(snap.stepGoal || 10000).toLocaleString()}.`;
-    const cookNote = "Grams for chicken, beef, rice, and potato are cooked unless you log them as uncooked.";
-    return `${snap.type} day. Eaten ${Math.round(snap.totals.calories)} / ${snap.targets.calories} kcal (${left} left). P ${Math.round(snap.remaining.protein)} / C ${Math.round(snap.remaining.carbs)} / F ${Math.round(snap.remaining.fat)} left.${stepLine}\n${cookNote}\nStill to eat:\n${meals}`;
-  }
-
-  if (/train day|rest day|plan|macros|protein|carb|fat/.test(q) && db.plan) {
-    const t = db.plan.days.train;
-    const r = db.plan.days.rest;
-    return `Current plan\n\nTrain (~${t.calories} kcal · P${t.protein} C${t.carbs} F${t.fat})\n${describeDay(t)}\n\nRest (~${r.calories} kcal · P${r.protein} C${r.carbs} F${r.fat})\n${describeDay(r)}\n\nTo change it, say the daily grams you want, e.g. “set protein to 180, carbs to 350, fat to 70 and show me the meals.”`;
-  }
-
-  return "I can log meals, grocery, steps, and I can rewrite the plan. Say the daily protein / carbs / fat you want (example: “change my day to 180 protein, 350 carbs, 70 fat”) and I’ll scale the meals and show what they look like.";
+function updateGroceryItem(db, id, patch) {
+  const item = db.grocery.items.find((i) => i.id === id);
+  if (item) Object.assign(item, patch, { id: item.id });
+  writeDb(db);
 }
 
-async function localHandle(path, opts = {}) {
-  const method = (opts.method || "GET").toUpperCase();
-  const url = new URL(path, "http://diet.local");
-  const route = url.pathname;
-  const body = opts.body ? JSON.parse(opts.body) : {};
-  const db = seedIfNeeded();
+function addGroceryItem(db, item, amount) {
+  db.grocery.items.push({ id: uid(), item: String(item || "").trim(), amount: String(amount || ""), have: false, category: "other" });
+  writeDb(db);
+}
 
-  if (route === "/api/plan" && method === "GET") return db.plan;
-  if (route === "/api/plan" && method === "PUT") {
-    for (const key of ["train", "rest"]) {
-      if (!body.days?.[key]) continue;
-      if (Array.isArray(body.days[key].meals) && body.days[key].meals.length) {
-        db.plan.days[key].meals = body.days[key].meals;
-      }
-      if (body.days[key].role) db.plan.days[key].role = body.days[key].role;
-      retotalDay(db.plan.days[key]);
-    }
-    if (Array.isArray(body.rules)) db.plan.rules = body.rules;
-    db.plan.updatedAt = todayKey();
-    writeDb(db);
-    return db.plan;
-  }
+function removeGroceryItem(db, id) {
+  db.grocery.items = db.grocery.items.filter((i) => i.id !== id);
+  writeDb(db);
+}
 
-  if (route === "/api/grocery" && method === "GET") return db.grocery;
-  if (route === "/api/grocery" && method === "PUT") {
-    if (typeof body.note === "string") db.grocery.note = body.note;
-    if (Array.isArray(body.items)) db.grocery.items = body.items;
-    writeDb(db);
-    return db.grocery;
-  }
-  if (route === "/api/grocery/item" && method === "POST") {
-    db.grocery.items.push({
-      id: uid(),
-      item: String(body.item || "").trim(),
-      amount: String(body.amount || ""),
-      have: Boolean(body.have),
-      category: body.category || "other",
-    });
-    writeDb(db);
-    return db.grocery;
-  }
-  if (route === "/api/grocery/item/update" && method === "POST") {
-    const item = db.grocery.items.find((i) => i.id === body.id);
-    if (item) Object.assign(item, body, { id: item.id });
-    writeDb(db);
-    return db.grocery;
-  }
-  if (route === "/api/grocery/item/delete" && method === "POST") {
-    db.grocery.items = db.grocery.items.filter((i) => i.id !== body.id);
-    writeDb(db);
-    return db.grocery;
-  }
+function setGroceryNote(db, note) {
+  db.grocery.note = String(note || "");
+  writeDb(db);
+}
 
-  if (route === "/api/today" && method === "GET") {
-    return snapshot(db, todayKey(url.searchParams.get("date")));
-  }
-  if (route === "/api/today/type" && method === "POST") {
-    const date = todayKey(body.date);
-    const day = ensureDay(db, date);
-    const next = body.type === "rest" ? "rest" : "train";
-    if (day.type && day.type !== next) {
-      day.eaten = (day.eaten || []).map((x) => {
-        if (x.kind !== "planned") return x;
-        const copy = { ...x, kind: "extra" };
-        delete copy.mealId;
-        copy.name = `${x.name} (was ${day.type})`;
-        return copy;
-      });
-    }
-    day.type = next;
-    writeDb(db);
-    return snapshot(db, date);
-  }
-  if (route === "/api/today/eat" && method === "POST") {
-    const date = todayKey(body.date);
-    const day = ensureDay(db, date);
-    if (!day.type) throw new Error("Pick train or rest first");
-    let entry;
-    if (body.mealId) {
-      const meal = db.plan.days[day.type].meals.find((m) => m.id === body.mealId);
-      if (!meal) throw new Error("Unknown meal");
-      if (day.eaten.some((x) => x.kind === "planned" && x.mealId === meal.id)) {
-        throw new Error("Already logged");
-      }
-      const shown = displayedMeals(db.plan.days[day.type], day.eaten).find((m) => m.id === meal.id) || meal;
-      const actual = Number.isFinite(Number(body.calories)) && Number(body.calories) > 0 && body.food;
-      entry = {
-        id: uid(),
-        kind: "planned",
-        mealId: meal.id,
-        name: actual ? `${meal.name} (changed)` : meal.name,
-        food: actual ? String(body.food) : shown.food,
-        calories: actual ? Number(body.calories) : shown.calories,
-        protein: actual ? Number(body.protein) || 0 : shown.protein,
-        carbs: actual ? Number(body.carbs) || 0 : shown.carbs,
-        fat: actual ? Number(body.fat) || 0 : shown.fat,
-        changed: Boolean(actual),
-        at: new Date().toISOString(),
-      };
-    } else {
-      entry = {
-        id: uid(),
-        kind: "extra",
-        name: String(body.name || "").trim(),
-        food: String(body.food || body.name || ""),
-        calories: Number(body.calories) || 0,
-        protein: Number(body.protein) || 0,
-        carbs: Number(body.carbs) || 0,
-        fat: Number(body.fat) || 0,
-        at: new Date().toISOString(),
-      };
-    }
-    day.eaten.push(entry);
-    writeDb(db);
-    return { entry, ...snapshot(db, date) };
-  }
-  if (route === "/api/today/uneat" && method === "POST") {
-    const date = todayKey(body.date);
-    const day = ensureDay(db, date);
-    day.eaten = (day.eaten || []).filter((x) => x.id !== body.id);
-    writeDb(db);
-    return snapshot(db, date);
-  }
-  if (route === "/api/today/steps" && method === "POST") {
-    const date = todayKey(body.date);
-    const day = ensureDay(db, date);
-    const steps = Math.round(Number(body.steps));
-    if (!Number.isFinite(steps) || steps < 0) throw new Error("steps required");
-    day.steps = steps;
-    day.stepsSource = body.source === "health" ? "health" : "manual";
-    day.stepsAt = new Date().toISOString();
-    writeDb(db);
-    return snapshot(db, date);
-  }
+// ---- Chat ----
 
-  if (route === "/api/food/lookup" && method === "POST") {
-    return window.DietFoods.estimateFood(body);
-  }
+function addChat(db, role, content) {
+  db.chats.messages.push({ id: uid(), role, content, at: new Date().toISOString() });
+  db.chats.messages = db.chats.messages.slice(-60);
+  writeDb(db);
+}
 
-  if (route === "/api/chat" && method === "GET") return db.chats.messages || [];
-  if (route === "/api/chat" && method === "POST") {
-    const date = todayKey(body.date);
-    const message = String(body.message || "");
-    const change = applyMacroChange(db, message);
-    let reply;
-    let applied = [];
-    if (change) {
-      reply = change.reply;
-      applied = change.applied;
-    } else {
-      try {
-        const system = window.DietLLM.buildChatSystem(db, date);
-        reply = await window.DietLLM.askAnywhere(system, db.chats.messages || [], message);
-      } catch {
-        reply = localReply(db, date, message);
-      }
-    }
-    const userMsg = { id: uid(), role: "user", content: message, at: new Date().toISOString() };
-    const agentMsg = { id: uid(), role: "agent", content: reply, at: new Date().toISOString(), applied };
-    db.chats.messages = [...(db.chats.messages || []), userMsg, agentMsg];
-    writeDb(db);
-    return { reply: agentMsg, messages: db.chats.messages, applied, plan: db.plan, grocery: db.grocery };
-  }
-  if (route === "/api/chat/clear" && method === "POST") {
-    db.chats.messages = [];
-    writeDb(db);
-    return [];
-  }
-
-  if (route === "/api/info") return { port: 3700, local: location.origin, phone: [location.origin] };
-
-  throw new Error("Unknown API route");
+function clearChats(db) {
+  db.chats.messages = [];
+  writeDb(db);
 }
 
 window.DietStore = {
-  async api(path, opts) {
-    if (onServer()) {
-      try {
-        const res = await fetch(path, {
-          headers: { "Content-Type": "application/json" },
-          ...opts,
-        });
-        const body = await res.json().catch(() => ({ ok: false, error: res.statusText }));
-        if (!body.ok) throw new Error(body.error || "Request failed");
-        return body.data;
-      } catch (err) {
-        return localHandle(path, opts);
-      }
-    }
-    return localHandle(path, opts);
-  },
+  db: readDb,
+  todayKey,
+  addDays,
+  parseDate,
+  sumMacros,
+  daySummary,
+  setDayType,
+  setMealsLeft,
+  setSteps,
+  addEntry,
+  updateEntry,
+  removeEntry,
+  findEntry,
+  mealItems,
+  preferredVariant,
+  foodItem,
+  recentDays,
+  WEEKLY_GOAL,
+  daysBetween,
+  pastDays,
+  weekSummaries,
+  checkIn,
+  applyCheckin,
+  exportDb,
+  backupSummary,
+  restoreDb,
+  markBackup,
+  saveSettings,
+  saveMeal,
+  removeMeal,
+  saveCustomFood,
+  removeCustomFood,
+  customByCode,
+  setWeight,
+  removeWeight,
+  weightTrend,
+  weightStats,
+  updateGroceryItem,
+  addGroceryItem,
+  removeGroceryItem,
+  setGroceryNote,
+  addChat,
+  clearChats,
 };

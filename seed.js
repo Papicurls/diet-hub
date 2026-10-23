@@ -1,1 +1,103 @@
-window.DIET_SEED = {"plan":{"version":"2026-09-06-4meals","lockedAt":"2026-09-06","updatedAt":"2026-09-06","source":"Chris Diet Hub update: 2850–2900 weekly, 140P, 65–70F, 4 meals both days","profile":{"name":"Chris","age":19,"height":"5'8.5\"","weightLb":[155,160],"weightUsedLb":158,"bodyFat":"11–13% (about 12%)","goal":"lean bulk — muscle with as little fat as possible","training":"5 lift days / 2 rest days","steps":"around 10k / day"},"targets":{"maintenanceKcal":2650,"leanBulkNote":"Weekly average 2,850–2,900. Train a little higher, rest a little lower. 140 g protein every day. Fat 65–70 g. Remaining calories from carbs.","proteinGPerLb":0.9,"fatGPerLbTrain":[0.4,0.45],"scaleRule":"Weigh 3–4 mornings/week. Goal +0.25–0.5 lb/week. Flat after 2 weeks → add 80 g cooked rice pre-lift (train) or 100 g cooked diced potato (rest). Faster than 0.5 lb/week → cut the same amount."},"rules":["4 meals every day — train and rest.","140 g protein every day.","Fat 65–70 g. Remaining calories from carbs.","Train: fast carbs (jasmine rice + coconut water) timed pre-lift and post-lift. No potatoes on lift days.","Rest: slow carbs (diced potatoes) at lunch, afternoon, and dinner. Smoothie in the morning. No rice.","4 farm eggs every day.","Chicken breast is the main train-day protein. 93/7 ground beef is the main rest-day protein.","Weights for chicken, beef, rice, and potato are cooked unless you log uncooked.","Raw milk means unpasteurized, not uncooked.","No greens. Salt food. Cook eggs/beef in a little olive oil — don't drown it.","Grocery haul: pick the ground-beef fat % you actually bought (default 93/7)."],"milkBudget":{"train":"250 ml morning","rest":"300 ml smoothie + 200 ml afternoon","weeklyMl":2250},"days":{"train":{"label":"Train day","countPerWeek":5,"calories":2940,"protein":142,"carbs":432,"fat":63,"calorieRange":[2900,2980],"role":"surplus — jasmine rice pre-lift and post-lift, chicken at midday, 4 meals","meals":[{"id":"train-morning","name":"Morning","when":"Morning","food":"4 farm eggs cooked in ½ tbsp olive oil + 250 ml raw milk","calories":498,"protein":34,"carbs":14,"fat":35},{"id":"train-midday","name":"Midday","when":"Midday","food":"180 g cooked chicken breast + 330 ml coconut water","calories":360,"protein":58,"carbs":12,"fat":7},{"id":"train-pre","name":"Pre-lift","when":"Pre-lift","food":"800 g cooked jasmine rice","calories":1040,"protein":22,"carbs":224,"fat":2},{"id":"train-post","name":"Post-lift","when":"Post-lift","food":"650 g cooked jasmine rice + 40 g cooked 93/7 ground beef + 1 tbsp olive oil","calories":1042,"protein":28,"carbs":182,"fat":19}]},"rest":{"label":"Rest day","countPerWeek":2,"calories":2758,"protein":144,"carbs":402,"fat":70,"calorieRange":[2720,2800],"role":"slightly lower carb — smoothie plus diced potatoes at the other 3 meals, 4 meals","meals":[{"id":"rest-smoothie","name":"Morning smoothie","when":"Morning","food":"300 ml raw milk + 1 banana + 1 cup frozen berries","calories":368,"protein":12,"carbs":61,"fat":11},{"id":"rest-lunch","name":"Lunch","when":"Lunch","food":"125 g cooked 93/7 ground beef + 2 farm eggs + 500 g cooked diced potato","calories":819,"protein":56,"carbs":101,"fat":22},{"id":"rest-afternoon","name":"Afternoon","when":"Afternoon","food":"600 g cooked diced potato + 250 ml coconut water + 200 ml raw milk","calories":692,"protein":20,"carbs":139,"fat":8},{"id":"rest-dinner","name":"Dinner","when":"Dinner","food":"125 g cooked 93/7 ground beef + 2 farm eggs + 500 g cooked diced potato + ½ tbsp olive oil","calories":879,"protein":56,"carbs":101,"fat":29}]}},"prep":{"rice":"7,250 g cooked jasmine rice / week (5 × 800 g pre + 5 × 650 g post) ≈ 5.3 lb dry","potato":"3,200 g cooked diced potato / week (2 rest days × 1,600 g) ≈ 9–10 lb raw","chicken":"900 g cooked / week (180 g × 5) from ~3 lb raw","beef":"700 g cooked 93/7 / week (40 g × 5 train + 250 g × 2 rest) from ~2.5 lb raw"},"micros":{"covered":["B12","zinc","iron","choline","selenium","potassium from potato + coconut water + banana","vitamin C from berries"],"watch":["Vitamin D — get sun","Magnesium a bit lighter with no greens"],"notes":"Rest-day beef carries zinc/iron/B12. Potatoes and coconut water cover potassium. Salt food. Don't get leaner than ~11–13% while bulking."}},"grocery":{"note":"This week's haul. Pick the ground-beef fat % you actually buy — plan is written for 93/7. Potatoes are rest-day carbs. Rice is train-day (pre/post lift).","seedVersion":"2026-09-06-4meals","items":[{"id":"chicken-breast","item":"Chicken breast","amount":"3 lb","have":false,"category":"protein"},{"id":"ground-beef","item":"Ground beef","amount":"2.5 lb","have":false,"category":"protein","beefFat":"93/7"},{"id":"eggs","item":"Farm eggs","amount":"3 dozen","have":false,"category":"protein"},{"id":"raw-milk","item":"Raw milk","amount":"2 gallons","have":true,"category":"dairy"},{"id":"white-jasmine-rice","item":"Jasmine rice","amount":"6 lb dry","have":false,"category":"carbs"},{"id":"potatoes","item":"Diced potatoes","amount":"10 lb","have":false,"category":"carbs"},{"id":"coconut-water","item":"Coconut water","amount":"3 × 1 L","have":false,"category":"carbs"},{"id":"olive-oil","item":"Olive oil","amount":"1 bottle","have":true,"category":"fat"},{"id":"bananas","item":"Bananas","amount":"2","have":false,"category":"fruit"},{"id":"frozen-berries","item":"Frozen berries","amount":"1 lb","have":false,"category":"fruit"},{"id":"salt","item":"Salt","amount":"as needed","have":true,"category":"pantry"}]}};
+// Starting data for a fresh phone, and for upgrading the old planned-meals version.
+window.DIET_SEED = {
+  targets: {
+    train: { calories: 2940, protein: 142, carbs: 432, fat: 63 },
+    rest: { calories: 2758, protein: 144, carbs: 402, fat: 70 },
+  },
+  hit: { kcalWindow: 100, carbFatPct: 10 },
+  stepGoal: 10000,
+  meals: [
+    {
+      id: "potatoes-eggs",
+      name: "Potatoes & eggs",
+      items: [
+        { food: "potato", amount: 400, unit: "g", doneness: "raw" },
+        { food: "olive-oil", amount: 7, unit: "g", doneness: null },
+        { food: "eggs", amount: 4, unit: "pc", doneness: null },
+        { food: "butter", amount: 7, unit: "g", doneness: null },
+        { food: "ketchup", amount: 30, unit: "g", doneness: null },
+      ],
+    },
+    {
+      id: "tacos",
+      name: "Tacos",
+      items: [
+        { food: "corn-tortilla", amount: 4, unit: "pc", doneness: null },
+        { food: "beef-93", amount: 170, unit: "g", doneness: "cooked" },
+        { food: "olive-oil", amount: 7, unit: "g", doneness: null },
+        { food: "onion", amount: 30, unit: "g", doneness: null },
+        { food: "cilantro", amount: 5, unit: "g", doneness: null },
+        { food: "lime", amount: 1, unit: "pc", doneness: null },
+      ],
+    },
+    {
+      id: "salmon-rice",
+      name: "Salmon & rice",
+      items: [
+        { food: "salmon-farmed", amount: 170, unit: "g", doneness: "cooked" },
+        { food: "rice", amount: 400, unit: "g", doneness: "cooked" },
+        { food: "olive-oil", amount: 14, unit: "g", doneness: null },
+      ],
+    },
+    {
+      id: "chicken-rice",
+      name: "Chicken & rice",
+      items: [
+        { food: "chicken-breast", amount: 200, unit: "g", doneness: "cooked" },
+        { food: "rice", amount: 400, unit: "g", doneness: "cooked" },
+        { food: "olive-oil", amount: 14, unit: "g", doneness: null },
+      ],
+    },
+    {
+      id: "steak-potatoes",
+      name: "Steak & potatoes",
+      items: [
+        { food: "steak-sirloin", amount: 200, unit: "g", doneness: "cooked" },
+        { food: "potato", amount: 400, unit: "g", doneness: "raw" },
+        { food: "olive-oil", amount: 20, unit: "g", doneness: null },
+      ],
+    },
+    {
+      id: "smoothie",
+      name: "Smoothie",
+      items: [
+        { food: "coconut-water", amount: 330, unit: "ml", doneness: null },
+        { food: "mango", amount: 120, unit: "g", doneness: null },
+        { food: "strawberries", amount: 120, unit: "g", doneness: null },
+        { food: "banana", amount: 0, unit: "pc", doneness: null },
+      ],
+    },
+  ],
+  quickFoods: [
+    { food: "raw-milk", amount: 250, unit: "ml" },
+    { food: "coconut-water", amount: 330, unit: "ml" },
+    { food: "banana", amount: 1, unit: "pc" },
+    { food: "kiwi", amount: 1, unit: "pc" },
+  ],
+  grocery: {
+    note: "Your weekly haul. Pick the ground-beef fat % you buy.",
+    items: [
+      { id: "chicken-breast", item: "Chicken breast", amount: "3 lb", have: false, category: "protein" },
+      { id: "ground-beef", item: "Ground beef", amount: "2.5 lb", have: false, category: "protein", beefFat: "93/7" },
+      { id: "steak", item: "Steak", amount: "", have: false, category: "protein" },
+      { id: "salmon", item: "Salmon", amount: "", have: false, category: "protein" },
+      { id: "eggs", item: "Farm eggs", amount: "3 dozen", have: false, category: "protein" },
+      { id: "raw-milk", item: "Raw milk", amount: "2 gallons", have: false, category: "dairy" },
+      { id: "white-jasmine-rice", item: "Jasmine rice", amount: "6 lb dry", have: false, category: "carbs" },
+      { id: "potatoes", item: "Potatoes", amount: "10 lb", have: false, category: "carbs" },
+      { id: "corn-tortillas", item: "Corn tortillas", amount: "", have: false, category: "carbs" },
+      { id: "bananas", item: "Bananas", amount: "", have: false, category: "fruit" },
+      { id: "kiwis", item: "Kiwis", amount: "", have: false, category: "fruit" },
+      { id: "mango", item: "Frozen mango", amount: "", have: false, category: "fruit" },
+      { id: "strawberries", item: "Frozen strawberries", amount: "", have: false, category: "fruit" },
+      { id: "coconut-water", item: "Coconut water", amount: "3 × 1 L", have: false, category: "drinks" },
+      { id: "onions", item: "Onions", amount: "", have: false, category: "produce" },
+      { id: "cilantro", item: "Cilantro", amount: "", have: false, category: "produce" },
+      { id: "limes", item: "Limes", amount: "", have: false, category: "produce" },
+      { id: "olive-oil", item: "Olive oil", amount: "1 bottle", have: false, category: "fat" },
+      { id: "butter", item: "Butter", amount: "", have: false, category: "fat" },
+      { id: "ketchup", item: "Ketchup", amount: "", have: false, category: "other" },
+      { id: "salt", item: "Salt", amount: "as needed", have: false, category: "other" },
+    ],
+  },
+};
